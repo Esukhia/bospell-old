@@ -23,7 +23,8 @@ tokens = tok.tokenize(pre_processed)
 single_syl_clusters = []
 tmp = []
 for token in tokens:
-    if (token.syls and len(token.syls) == 1) or 'punct' in token.tag:
+    if (token.syls and len(token.syls) == 1) or \
+            'punct' in token.tag:
         tmp.append(token)
     else:
         if tmp:
