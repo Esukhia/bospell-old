@@ -1,10 +1,16 @@
+from pybo import *
+
 import re
-from resources.pybo.pybo.pybo import *
+import hashids
 
+import ngram
+import pickle
 
-class BasicTests:
+from symspellcompound.symspellcompound import SySpellCompound
+
+class Tests:
     """
-    This class contains the basic tests that will need to be aggregated into
+    This class contains the tests that will need to be aggregated into
     real testing functions.
 
     As soon we want to test something in a Token object, we should check if it is
@@ -40,6 +46,7 @@ class BasicTests:
         self.OOV = 'XXX'  # https://github.com/Esukhia/pybo/blob/master/pybo/BoTrie.py#L209
         self.SOAS_OOV = 'X'  # in pybo/resources/trie/Tibetan.DICT
         self.NON_WORD = 'non-word'  # pybo/BoTokenizer.py#L156
+        self.LFM = 1000 # Hightest low frequency of the monosyllabic words
 
     @staticmethod
     def is_punct_token(token):
@@ -52,8 +59,11 @@ class BasicTests:
     def is_non_bo_token(self, token):
         return self.OTHER in token.char_groups.values()
 
-    def is_non_word(self, token):
+    def is_non_word_token(self, token):
         return token.tag == self.NON_WORD
+
+    def is_skrt_token(self, token):
+        return token.skrt
 
     def has_skrt_char(self, token):
         return self.SKRT_VOW in token.char_groups.values() or \
@@ -98,375 +108,263 @@ class BasicTests:
 
         return re.search(regex1, syl) or re.search(regex2, syl) or re.search(regex3, syl)
 
-
-class MatcherTests(BasicTests):
-    """
-    This class builds on top of the single-purposed tests defined in BasicTests
-    to build tests that will be usable in the real world.
-
-    The declared here should only aggregate the tests in BasicTests into new methods
-    They should not declare any concrete test.
-    """
-    def __init__(self):
-        BasicTests.__init__(self)
-
     def mono_or_punct_or_nonword(self, token):
-        return self.is_monosyl_token(token) or \
-               self.is_punct_token(token) or \
-               self.is_non_word(token)
+        return self.is_monosyl_token(token) or self.is_punct_token(token) or self.is_non_word_token(token)
 
     def skrt(self, token):
-        return self.has_skrt_syl(token) or \
-               self.has_skrt_char(token)
+        return self.has_skrt_syl(token) or self.has_skrt_char(token)
+
+    def is_HFM(self, token):
+        return token.freq > self.LFM
+
+    def is_LFM(self, token):
+        return token.freq <= self.LFM
 
 
-class TokenClusters:
-    def __init__(self):
-        self.tests = MatcherTests()
-
-    @staticmethod
-    def piped_clusterize(clusterized, condition):
-        """
-        Uses "condition" to decide if a given cluster should be kept or if it should
-        be dismantled.
-        A cluster is kept if at least one of its elements satisfies "condition".
-
-        :param clusterized: a clusterized list of Token objects
-        :param condition: function to test if cluster should be kept
-        :return: modified clusterized
-        """
-        result = []
-        for token_or_list in clusterized:
-            if type(token_or_list) != list:
-                result.append(token_or_list)
-            else:  # assuming it is always a list
-                passes = False
-                for token in token_or_list:
-                    if condition(token):
-                        passes = True
-
-                if passes:
-                    result.append(token_or_list)
-                else:
-                    result.extend(token_or_list)
-        return result
-
-    @staticmethod
-    def nonword_or_skrt_piped_clusterize(clusterized, skrt_condition, nonword_condition):
-        """
-        flags clusters with skrt as 'skrt', clusters with nonwords as 'nonword',
-        dismantled the others.
-
-        :param clusterized:
-        :param condition:
-        :return:
-        """
-        result = []
-        for token_or_list in clusterized:
-            if type(token_or_list) != list:
-                result.append(token_or_list)
-            else:  # assuming it is always a list
-                conditions = []
-                for token in token_or_list:
-                    is_skrt = False
-                    is_nonword = False
-                    if skrt_condition(token):
-                        is_skrt = True
-                    if nonword_condition(token):
-                        is_nonword = True
-
-                    # if for the same token
-                    if is_skrt and is_nonword:
-                        conditions.append('s')
-                    elif is_skrt:
-                        conditions.append('s')
-                    elif is_nonword:
-                        conditions.append('n')
-
-                if 's' in conditions and 'n' in conditions:
-                    result.append({'both': token_or_list})
-                elif 's' in conditions:
-                    result.append({'skrt': token_or_list})
-                elif 'n' in conditions:
-                    result.append({'non-word': token_or_list})
-                else:
-                    result.extend(token_or_list)
-
-        return result
-
-    @staticmethod
-    def clusterize(tokens, condition):
-        """
-        Creates clusters of tokens that satisfy the condition given as argument.
-
-        :param tokens: a list of Token objects(output of pybo.Tokenizer)
-        :param condition: function to test whether a token should be integrated into a cluster or not
-        :return: tokens, but with all the tokens passing the test put into a list.
-                thus, an element in the resulting list can either be a Token object or a list of Token objects.
-        """
-        clusters = []
-        tmp = []
-        for token in tokens:
-            if condition(token):
-                tmp.append(token)
-            else:
-                if tmp:
-                    clusters.append(tmp)
-                    tmp = []
-                clusters.append(token)
-        return clusters
-
-    @staticmethod
-    def format_single_syl_clusters(clusterized):
-        """
-        for every token, extract the raw content and add it to "out".
-        for every cluster, extract the contents and join them with "-" and add double parens
-        to visually identify them.
-
-        :param clusterized: clusterized list of Token objects
-        :return: the
-        """
-        out = ''
-        for elt in clusterized:
-            if type(elt) == list:
-                out += '《{}》'.format('|'.join([token.content for token in elt]))
-            else:
-                out += elt.content
-        return out
-
-    @staticmethod
-    def tokens_to_str(clusters):
-        """
-        returns the same clustered structure, but replaces Token objects with strings.
-        :param clusters:
-        :return:
-        """
-        str_structure = []
-        for cl in clusters:
-            if type(cl) != dict:
-                str_structure.append(cl.content)
-            else:
-                key = list(cl.keys())[0]
-                new = {key: []}
-                for token in cl[key]:
-                    new[key].append(token.content)
-                str_structure.append(new)
-        return str_structure
-
-
-def tokens_from_string(to_tokenize, trie_profile='pytib'):
-    """
-    Generates tokens from a given input string
-
-    :param to_tokenize: string to tokenize
-    :param trie_profile: profile of PyBoTrie to pass on
-    :return: a list of Token objects
-
-    .. note:: is not optimized because it instanciates all the classes from
-    pybo at every call
-    """
-    # a. instanciate the tokenizer
-    bs = BoSyl()  # used to dynamically generate affixed versions
-    trie = PyBoTrie(bs, profile=trie_profile)  # loads or builds a trie
-    tok = Tokenizer(trie)
-
-    # b. pre-process the input string
-    pre_processed = PyBoTextChunks(to_tokenize)
-
-    # c. tokenize
-    tokens = tok.tokenize(pre_processed)
-    return tokens
-
-
-def str_clusters_from_string(in_str):
-    """
-    - Tokenizes the input string with pybo
-    - Creates clusters containing mono-syllabled tokens, punctuation and non-words
-    - filters the clusters to only keep those with skrt syls or non-word syls
-    - converts from tokens to strings
-
-    :param in_str: input string to be processed
-    :return: a string representation of the created clusters
-    """
-    t = MatcherTests()
-    cl = TokenClusters()
-    tokens = tokens_from_string(in_str)
-
-    unfiltered_clusters = cl.clusterize(tokens, t.mono_or_punct_or_nonword)
-    clusters = cl.nonword_or_skrt_piped_clusterize(unfiltered_clusters, t.has_skrt_syl, t.is_non_word)
-    cluster = cl.tokens_to_str(clusters)
-
-    return cluster
-
-
-class Cluster:
-    def __init__(self, raw_clusters):
-        self.freqs = {}
-        self.__load_freqs()
-        self.base_structure = []
+class Structure:
+    def __init__(self, page):
         self.clusters = []
-        self.__load_clusters(raw_clusters)
-        self.freq_structure = []
-        self.__load_freq_structure()
+        self.hash_clusters = []
+        self.page = page
 
-    def __load_freqs(self):
-        with open('resources/total_freqs.txt', 'r') as f:
+
+
+        self.tokens = self.tokenize()
+        # a supprimer quand implémenté à Pybo
+        self.freqs = {}
+        self.freq_tokens()
+        self.skrt_tokens()
+
+        self.clusterize()
+        self.adjust_clusters()
+        self.cluster_format()
+
+    def tokenize(self):
+        tok = BoTokenizer("POS")
+        return tok.tokenize(self.page)
+
+    def freq_tokens(self):
+        with open('resources/total_freqs.txt', 'r', encoding="utf8") as f:
             content = f.readlines()
             for line in content:
                 word, freq = line.split()
                 self.freqs[word] = int(freq)
 
-    def __load_clusters(self, raw_clusters):
-        count = 0
-        for elt in raw_clusters:
-            if type(elt) != dict:  # assuming it is a string
-                self.base_structure.append(elt)
-                count += 1
-            else:
-                key = list(elt.keys())[0]
-                cluster = []
-                for token in elt[key]:
-                    self.base_structure.append(token)
-                    count += 1
-                    cluster.append(count)
-                self.clusters.append({key: cluster})
+        for token in self.tokens:
+            if token.cleaned_content in self.freqs.keys():
+                setattr(token, "freq", self.freqs[token.cleaned_content])
 
-    def __load_freq_structure(self):
-        for token in self.base_structure:
-            if token in self.freqs.keys():
-                self.freq_structure.append(self.freqs[token])
-            else:
-                self.freq_structure.append(-1)
+    def skrt_tokens(self):
+        for token in self.tokens:
+            setattr(token, "skrt", False)
+            if test.is_monosyl_token(token) and test.skrt(token):
+                token.skrt = True
 
-    def is_low_freq(self, token_idx):
-        return self.freq_structure[token_idx] <= 1000
-
-    def is_high_freq(self, token_idx):
-        return self.freq_structure[token_idx] >= 1000
+    def clusterize(self):
+        tmp = []
+        for i, token in enumerate(self.tokens):
+            if test.mono_or_punct_or_nonword(token):
+                if not (not tmp and test.is_punct_token(token)):
+                    tmp.append(i)
+            elif tmp:
+                self.clusters.append([tmp[0], tmp[-1]])
+                tmp = []
 
     def adjust_clusters(self):
-        for i in range(len(self.clusters)-1):
-            # for each side, 1. prune high frequency tokens, extend low frequency
-            key = list(self.clusters[i])[0]
-            left_token = self.clusters[i][key][0]
-            right_token = self.clusters[i][key][-1]
+        for i, cluster in enumerate(self.clusters):
+            left_cluster_id = cluster[0]
+            right_cluster_id = cluster[1]
 
-            # A. adjust left context
-            if self.is_high_freq(left_token):
-                while self.is_high_freq(left_token) and left_token <= right_token:
-                    left_token += 1
-            elif self.is_low_freq(left_token):
-                if self.is_low_freq(left_token - 1):
-                    left_token -= 1
-            # else do nothing: we have no frequency to work with, so leaving the cluster as-is
+            # Left context
+            while left_cluster_id < right_cluster_id:
+                if self.get_mono_token_freq(left_cluster_id) > test.LFM:
+                    left_cluster_id += 1
+                    while test.is_punct_token(self.tokens[left_cluster_id]):
+                        left_cluster_id += 1
+                else: break
 
-            # C. flag high frequency clusters
-            if left_token == right_token:
-                self.clusters[i] = {'high_freq_cluster': self.clusters[i][key]}
+            if left_cluster_id == right_cluster_id:
+                if self.get_mono_token_freq(left_cluster_id) > test.LFM:
+                    self.clusters[i] = None
+                    continue
+                else:
+                    self.clusters[i] = [left_cluster_id]
+                    continue
+            elif left_cluster_id > right_cluster_id:
+                self.clusters[i] = None
                 continue
-
-            # B. adjust right context
             else:
-                if self.is_high_freq(right_token):
-                    while self.is_high_freq(right_token) and right_token >= left_token:
-                        right_token -= 1
-                elif self.is_low_freq(right_token):
-                    if self.is_low_freq(right_token + 1):
-                        left_token += 1
+                cluster[0] = left_cluster_id
 
-            # C. flag high frequency clusters
-            if left_token == right_token:
-                self.clusters[i] = {'high_freq_cluster': self.clusters[i][key]}
+            # Right context
+            while right_cluster_id > left_cluster_id:
+                while test.is_punct_token(self.tokens[right_cluster_id]):
+                    right_cluster_id -= 1
+                if self.get_mono_token_freq(right_cluster_id) > test.LFM:
+                    right_cluster_id -= 1
+                else: break
+
+            if right_cluster_id == left_cluster_id:
+                if self.get_mono_token_freq(right_cluster_id) > test.LFM:
+                    self.clusters[i] = None
+                    continue
+                else:
+                    self.clusters[i] =  [right_cluster_id]
+                    continue
+            elif right_cluster_id < left_cluster_id:
+                self.clusters[i] = None
                 continue
+            else:
+                cluster[1] = right_cluster_id
 
-            if left_token != self.clusters[i][key][0] or right_token != self.clusters[i][key][-1]:
-                new_cluster = {key: list(range(left_token, right_token))}
-                self.clusters[i] = new_cluster
+        self.clusters = [c for c in self.clusters if c]
 
-    def export_clusters(self):
-        out = []
-        current_token = 0
-        for cluster in self.clusters:
-            key = list(cluster)[0]
-            while cluster[key][0] > current_token:
-                out.append(self.base_structure[current_token])
-                current_token += 1
+    def cluster_format(self):
+        hash = hashids.Hashids(salt=hex(id(self)), min_length=9)
+        for i, cluster_index in enumerate(self.clusters):
+            type = self.cluster_type(cluster_index)
+            hash_id = hash.encode(cluster_index[0])
+            if len(cluster_index) == 1:
+                self.clusters[i] = [hash_id, cluster_index[0], type]
+            else:
+                self.clusters[i] = [hash_id, tuple(cluster_index), type]
+            self.hash_list = [hash_id]
 
-            str_cluster = [self.base_structure[token] for token in cluster[key]]
-            out.append({key: str_cluster})
-            current_token = cluster[key][-1] + 1
+        self.clusters = {k[0]: [k[1], k[2]] for k in self.clusters}
 
-        return out
-
-
-def generate_combinations(clusters):
-    """
-    Does nothing if not a non-word cluster, but could do anything else
-    :param clusters:
-    :return:
-    """
-    cluster_combs = []
-    for num, elt in enumerate(clusters):
-        if type(elt) != dict:
-            pass
+    def cluster_type(self, cluster_index):
+        type = []
+        if len(cluster_index) > 1:
+            cluster_token = self.tokens[cluster_index[0]:cluster_index[1]+1]
         else:
-            key = list(elt)[0]
-            if key == 'non-word':
-                cluster_str = ''.join(elt[key])
-                preprocessed = PyBoTextChunks(cluster_str).serve_syls_to_trie()
-                syls = []
-                for p in preprocessed:
-                    if p[0]:
-                        syl = ''.join([cluster_str[idx] for idx in p[0]])
-                        syls.append(syl)
+            cluster_token = [self.tokens[cluster_index[0]]]
 
-                combinations = [' '.join(syls[0:i + 1]) for i in range(len(syls))]
-                cluster_combs.append(combinations)
-    return cluster_combs
+        while cluster_token:
+            t = cluster_token.pop()
+            if test.is_skrt_token(t):
+                type.append("skrt")
+            elif test.is_non_word_token(t):
+                type.append(test.NON_WORD)
+            elif test.is_monosyl_token(t):
+                type.append("mono")
+
+        if all([True if t == "skrt" else False for t in type]):
+            return "skrt"
+        elif any([True if t == "skrt" else False for t in type]):
+            return "both"
+        elif any([True if t == test.NON_WORD else False for t in type]):
+            return test.NON_WORD
+        elif all([True if t == "mono" else False for t in type]):
+            return "mono"
+
+    def get_mono_token_freq(self, index):
+        if test.is_monosyl_token(self.tokens[index]):
+            return self.tokens[index].freq
+
+
+
+class Prediction:
+    def __init__(self, clusters, tokens):
+        self.clusters = clusters
+        self.tokens = tokens
+        self.limit=-1
+        self.result = {}
+        build = True
+        rawPath = 'entries.txt'
+        ngramPath = "ngram.pickled"
+
+        if build or not os.path.isfile("ngram.pickled"):
+            with open(rawPath, mode='r', encoding='utf-8') as f:
+                G = ngram.NGram(f.read().splitlines(), N=2)
+            pickle.dump(G, open(ngramPath, "wb"), -1)
+
+        self.N = pickle.load(open(ngramPath, "rb"))
+
+    def load_tokens(self, last_token=""):
+        if not last_token:
+                if self.right - self.left > 5:
+                    for i, c in enumerate(self.tokens[self.left:self.right+1][0:5]):
+                        if test.is_punct_token(c):
+                            self.limit = i
+                            tmp = self.tokens[self.left:self.right+1][0:i]
+                            self.left = self.limit+1
+                            while test.is_punct_token(self.tokens[self.left]):
+                                self.left += 1
+                            return tmp
+                    else:
+                        tmp = self.tokens[self.left:self.right+1][0:5]
+                        self.left += 4
+                        return tmp
+                elif self.right - self.left < 0:
+                    return -1
+                else:
+                    tmp = self.tokens[self.left:self.right+1]
+                    self.left = self.right + 1
+                    return tmp
+
+    def ngrams(self):
+        for k, v in self.clusters.items():
+            if isinstance(v[0], tuple):
+                self.left = v[0][0]
+                self.right = v[0][1]
+            else:
+                self.left = self.right = v[0]
+
+
+                self.left = self.get_previous_token(self.left)
+                self.right = self.get_next_token(self.right)
+
+
+            while True:
+                self.cluster_tokens = []
+                self.cluster_tokens = self.load_tokens()
+                if self.cluster_tokens == -1: break
+
+
+                for i in range(len(self.cluster_tokens)):
+                    c = "".join([c.cleaned_content for c in self.cluster_tokens])
+                    ngram_result = self.N.search(c, threshold=0.52)
+                    if ngram_result: self.result[c] = ngram_result
+                    self.cluster_tokens.pop()
+                    if len(self.cluster_tokens) == 1 and test.is_HFM(self.cluster_tokens[0]): break
+
+            print(self.result)
+
+        print(self.N.search("ཆོ་ཉིད་", threshold=0.52))
+
+    def get_previous_token(self, index):
+        if index > 0 and not test.is_punct_token(self.tokens[index-1]):
+            return index-1
+        else: return index
+
+    def get_next_token(self, index):
+        if index < len(self.tokens) and not test.is_punct_token(self.tokens[index+1]):
+            return index+1
+        else: return index
+
+    def symspell(self):
+        ssc = SySpellCompound()
+        ssc = SySpellCompound(maxDictionaryEditDistance=5)
+
+        print(ssc.load_dictionary("lists/dictionary_bo_107_064.txt", term_index=0, count_index=1))
+        print(ssc.lookup_compound(input_string="བཀྲ་ཤས་བདེ་ལགས་", edit_distance_max=2))
+
 
 
 if __name__ == '__main__':
-    page = """[29a.1]རྨི་ལམ་ངན་པ་དང་། ལོག་འདྲེན་གྱི་གནོད་པ་ཐམས་ཅད་དང་། བྱད་དང་རོ་ལངས་ཐམས་ཅད་རབ་ཏུ་ཞི་བར་འགྱུར། གང་གིས་མཁས་པ་དག་ཁྲུས་བགྱིད་དུ་སྩལ་བའི་སྨན་དང་སྔགས་ནི་འདི་དག་སྟེ། ཤུ་དག་གིའུ་ཝང་འུ་སུ་དང་། །ཤ་མྱང་ཤ་མི་ཤི་རི་ཤ །དབང་
-[29a.2]པོའི་ལག་དང་སྐལ་བ་ཆེ། །ཛྙ་མ་ཤིང་ཚ་ཨ་ག་རུ། །ཤི་རི་བེ་སྟ་སྲ་རྩི་དང་། །གུ་གུལ་ར་ས་ཤླ་ལ་ཀི། །རྡོ་དྲེག་ལོ་མ་རྒྱ་སྤོས་དང་། །ཙནྡན་དང་ནི་ལྡོང་རོས་དང་། །གི་ཝང་བཅས་དང་རུ་རྟ་དང་། །གུར་གུམ་གླ་སྒང་ཡུངས་ཀར་དང་། །སྦྱི་མོ་སུག་སྨེལ་ན་ལ་ད། །ནཱ་ག་གེ་
-[29a.3]སར་ཨུ་ཤི་ར། །འདི་དག་ཆ་ནི་མཉམ་བགྱིས་ནས། །སྐར་མ་རྒྱལ་ལ་བཏགས་པར་བགྱི། །ཕྱེ་མ་ལ་ནི་སྔགས་ཚིག་འདི། །ལན་བརྒྱ་མངོན་པར་གདབ་པར་བགྱི། །ཏད་ཡ་ཐཱ། སུ་ཀྲྀ་ཏེ་ཀྲྀ་ཏ་ཀ་མ་ལ་ནཱི་ལ་ཛི་ན་ཀ་ར་ཏེ། ཧཾ་ཀ་རཱ་ཏེ། ཨིནྡྲ་ཛ་ལི། ཤ་ཀད་དྲེ་བ་ཤད་དྲེ། ཨ་བརྟ་ཀ་
-[29a.4]སི་ཀེ། ན་ཀུ་ཏྲ་ཀུ། ཀ་བི་ལ་ཀ་བི་ལ་མ་ཏི། ཤཱི་ལ་མ་ཏི། སན་དྷི་དྷུ་དྷུ་མ་མ་བ་ཏི། ཤི་རི་ཤི་རི། ས་ཏྱ་སྠི་ཏེ་སྭཱ་ཧཱ། ལྕི་བས་དཀྱིལ་འཁོར་བགྱིས་ནས་ནི། །མེ་ཏོག་སིལ་མ་དགྲམ་པར་བགྱི། །གསེར་གྱི་སྣོད་དང་དངུལ་སྣོད་དུ། །མངར་བའི་ཁུ་བ་གཞག་པར་བགྱི། །སྐྱེས་བུ་གོ་ཆ་བགོས་པ་ནི། །བཞི་ཞིག་དེར་
-[29a.5]ཡང་གཞག་པར་བགྱི། །རབ་ཏུ་བརྒྱན་པའི་བུ་མོ་བཞི། །བུམ་པ་ཐོགས་པ་གཞག་པར་བགྱི། །རྟག་ཏུ་གུ་གུལ་བདུག་པར་བགྱི། །སིལ་སྙན་སྣ་ལྔ་བགྱིད་དུ་སྩལ། །གདུགས་དང་རྒྱལ་མཚན་བ་དན་གྱིས། །ལྷ་མོ་དེ་ནི་ལེགས་པར་བརྒྱན། །བར་བར་དག་ཏུ་མེ་ལོང་གཞག །མདའ་དང་
-[29a.6]མདུང་རྩེ་རྣ་བྲང་གཞག །དེ་ནས་མཚམས་ཀྱང་གཅད་པར་བགྱི། །དེ་ཡི་འོག་ཏུ་དགོས་པ་བརྩམ། །སྔགས་ཀྱི་ལས་ནི་འདི་དག་གིས། །མཚམས་བཅད་པ་ཡང་བརྩམ་པར་བགྱི། །སྱད་ཡ་ཐེ་དན། ཨ་ར་ཀེ །ན་ཡ་ནེ། ཧི་ལེ། མི་ལེ། གི་ལེ། ཁི་ཁི་ལེ་སྭཱ་ཧཱ། བཅོམ་
-[29a.7]ལྡན་འདས་ཀྱི་སྣམ་ལོགས་སུ་ཁྲུས་བགྱིས་ནས་སྔགས་འདི་བཟླས་བརྗོད་བགྱིས་ན་ཁྲུས་ཀྱི་ཞི་བར་སྦྱོར་རོ། །ཏད་ཡ་ཐཱ། ས་ག་ཊེ། བི་ག་ཌེ། བི་ག་ཏ་བ་ཏི་སྭཱ་ཧཱ། ཕྱོགས་བཞི་དག་ན་གང་གནས་པའི། །རྒྱུ་སྐར་དག་གིས་ཚེ་སྲུངས་ཤིག །བཙས་པའི་སྐར་མའི་གནོད་པ་དང་། །"""
-    clusters = str_clusters_from_string(page)
-    cl_object = Cluster(clusters)
-    before_adjusting = cl_object.export_clusters()
-    cl_object.adjust_clusters()
-    after_adjusting = cl_object.export_clusters()
 
-    before_formatted = ''.join([cl if type(cl) == str else '《{}: {}》'.format(list(cl.keys())[0], '|'.join(cl[list(cl.keys())[0]])) for cl in before_adjusting])
-    # print(clusters)
-    print(before_formatted)
-    # [29a.1]རྨི་ལམ་ངན་པ་དང་། ལོག་འདྲེན་གྱི་གནོད་པ་ཐམས་ཅད་དང་། བྱད་དང་རོ་ལངས་ཐམས་ཅད་རབ་ཏུ་ཞི་བར་འགྱུར། གང་གིས་མཁས་པ་དག་《non-word: ཁྲུས་|བགྱིད་|སྩལ་བའི་》སྨན་དང་སྔགས་ནི་འདི་དག་སྟེ། ཤུ་དག་གིའུ་《non-word: ཝང་|འུ་སུ་》དང་། །ཤ་མྱང་ཤ་མི་ཤི་རི་ཤ །དབང་
-    # [29a.2]པོའི་ལག་དང་སྐལ་བ་ཆེ། །ཛྙ་མ་ཤིང་ཚ་ཨ་《non-word: ག་|རུ|། |།|ཤི་|རི་|བེ་|སྲ་རྩི་》དང་། །གུ་གུལ་ར་ས་ཤླ་ལ་ཀི། །རྡོ་དྲེག་ལོ་མ་རྒྱ་སྤོས་དང་《skrt: ། |།|ཙནྡན་|དང་|ནི་|ལྡོང་རོས་》དང་། །གི་ཝང་བཅས་དང་རུ་རྟ་དང་། །གུར་གུམ་གླ་སྒང་ཡུངས་ཀར་དང་། །སྦྱི་མོ་སུག་སྨེལ་ན་ལ་ད། །ནཱ་ག་གེ་《non-word: སར་|ཨུ་|ར|། |།|འདི་དག་》ཆ་ནི་མཉམ་བགྱིས་ནས། །སྐར་མ་རྒྱལ་ལ་བཏགས་པར་བགྱི། །ཕྱེ་མ་ལ་ནི་སྔགས་ཚིག་འདི། །ལན་བརྒྱ་མངོན་པར་གདབ་པར་བགྱི《both: ། |།|ཏད་|ཡ་|ཐཱ|།| སུ་|ཀྲྀ་|ཏེ་|ཀྲྀ་|ཏ་|ཀ་མ་ལ་》ནཱི་《skrt: ལ་|ཛི་ན་》ཀ་ར་ཏེ《both: །| ཧཾ་|ཀ་|རཱ་|།| ཨིནྡྲ་|ཛ་|ལི|།| ཤ་|ཀད་|དྲེ་|བ་|ཤད་|དྲེ|།| ཨ་|བརྟ་|
-    # [29a.4]》སི་《non-word: ཀེ|།| ན་|ཀུ་|ཀུ| ཀ་|བི་|ཀ་|བི་|མ་ཏི》།《skrt:  ཤཱི་|ལ་མ་》ཏི《both:  སན་|དྷི་|དྷུ་|དྷུ་|མ་མ་》བ་《both: ཏི| ཤི་|རི་|ཤི་|རི|།| ས་|ཏྱ་|སྠི་|ཏེ་|སྭཱ་|ཧཱ|།| ལྕི་བས་》དཀྱིལ་འཁོར་བགྱིས་ནས་ནི། །མེ་ཏོག་སིལ་མ་དགྲམ་པར་བགྱི། །གསེར་གྱི་སྣོད་དང་དངུལ་སྣོད་དུ། །མངར་བའི་ཁུ་བ་གཞག་པར་བགྱི། །སྐྱེས་བུ་གོ་ཆ་བགོས་པ་ནི། །བཞི་ཞིག་དེར་
-    # [29a.5]ཡང་གཞག་པར་བགྱི། །རབ་ཏུ་བརྒྱན་པའི་བུ་མོ་བཞི། །བུམ་པ་ཐོགས་པ་གཞག་པར་བགྱི། །རྟག་ཏུ་གུ་གུལ་བདུག་པར་བགྱི། །སིལ་སྙན་སྣ་《non-word: ལྔ་|བགྱིད་|སྩལ|། |།|གདུགས་|དང་|རྒྱལ་མཚན་》བ་དན་གྱིས། །ལྷ་མོ་དེ་ནི་ལེགས་པར་བརྒྱན། །བར་བར་དག་ཏུ་མེ་ལོང་གཞག །མདའ་དང་
-    # [29a.6]མདུང་རྩེ་རྣ་བྲང་གཞག །དེ་ནས་མཚམས་ཀྱང་གཅད་པར་བགྱི། །དེ་ཡི་འོག་ཏུ་དགོས་པ་བརྩམ། །སྔགས་ཀྱི་ལས་ནི་འདི་དག་གིས། །མཚམས་བཅད་པ་ཡང་བརྩམ་པར་བགྱི《non-word: ། |།|སྱད་|ཡ་|ཐེ་|།| ཨ་ར་》ཀེ 《both: །|ན་|ཡ་|ནེ| ཧི་|ལེ|།| མི་|ལེ|།| གི་|ལེ|།| ཁི་|ལེ་|སྭཱ་|ཧཱ|།| བཅོམ་|
-    # [29a.7]》ལྡན་འདས་ཀྱི་སྣམ་ལོགས་སུ་ཁྲུས་བགྱིས་ནས་སྔགས་འདི་བཟླས་བརྗོད་བགྱིས་ན་ཁྲུས་ཀྱི་ཞི་བར་སྦྱོར་《both: རོ|། |།|ཏད་|ཡ་|ཐཱ|།| ས་ག་》ཊེ《both: །| བི་|ཌེ|།| བི་|ཏ་|བ་|ཏི་|ཧཱ|།| ཕྱོགས་|བཞི་|དག་|ན་|གང་|གནས་པའི》
-    print()
+    page = '''ཁ་བཅོམ་འདན་འདས་དཔལ་ཀུན་ཏུ་བཟང་པོ་ལ་ཕྱག་འཚལ་ལོ།
+     །རྒྱུད་གསུམ་ངེས་པར་བཤད་པ། དེ་ནས་དེའི་ཚེ་དེའི་དུས་ན་ཆོ་ཉིད་ཀྱི་མཁའ་དབྱངས་ཉིད་ཀྱི་ཀོང་།
+      སེམས་ཉིད་ཀྱི་གནས་དེར་བྱང་ཆུབ་ཀྱི་སེམས་ཀུན་བྱེད་རྒྱལ་པོ་ཉིད་ཆོས་ཐམས་ཆེད་སྐྱེ་བ་མེད་པའི་ངང་ལ་དགོངས་ནས་སོགས་་་'''
 
-    after_formatted = ''.join(
-        [cl if type(cl) == str else '《{}: {}》'.format(list(cl.keys())[0], '|'.join(cl[list(cl.keys())[0]])) for cl in
-         after_adjusting])
-    print(after_formatted)
-    # [29a.1]རྨི་ལམ་ངན་པ་དང་། ལོག་འདྲེན་གྱི་གནོད་པ་ཐམས་ཅད་དང་། བྱད་དང་རོ་ལངས་ཐམས་ཅད་རབ་ཏུ་ཞི་བར་འགྱུར། གང་གིས་མཁས་པ་དག་《high_freq_cluster: ཁྲུས་|བགྱིད་|སྩལ་བའི་》སྨན་དང་སྔགས་ནི་འདི་དག་སྟེ། ཤུ་དག་《non-word: གིའུ་|ཝང་》འུ་སུ་དང་། །ཤ་མྱང་ཤ་མི་ཤི་རི་ཤ །དབང་
-    # [29a.2]པོའི་ལག་དང་སྐལ་བ་ཆེ། །ཛྙ་མ་ཤིང་ཚ་ཨ་ག་རུ《non-word: ། |།|ཤི་|རི་|བེ་》སྲ་རྩི་དང་། །གུ་གུལ་ར་ས་ཤླ་ལ་ཀི། །རྡོ་དྲེག་ལོ་མ་རྒྱ་སྤོས་དང་《skrt: ། |།|ཙནྡན་|དང་|ནི་|ལྡོང་རོས་》དང་། །གི་ཝང་བཅས་དང་རུ་རྟ་དང་། །གུར་གུམ་གླ་སྒང་ཡུངས་ཀར་དང་། །སྦྱི་མོ་སུག་སྨེལ་ན་ལ་ད། །ནཱ་ག་གེ་སར་《non-word: ཨུ་|ར|། |།》འདི་དག་ཆ་ནི་མཉམ་བགྱིས་ནས། །སྐར་མ་རྒྱལ་ལ་བཏགས་པར་བགྱི། །ཕྱེ་མ་ལ་ནི་སྔགས་ཚིག་འདི། །ལན་བརྒྱ་མངོན་པར་གདབ་པར་བགྱི《both: ། |།|ཏད་|ཡ་|ཐཱ|།| སུ་|ཀྲྀ་|ཏེ་|ཀྲྀ་|ཏ་|ཀ་མ་ལ་》ནཱི་《high_freq_cluster: ལ་|ཛི་ན་》ཀ་ར་ཏེ།《both:  ཧཾ་|ཀ་|རཱ་|།| ཨིནྡྲ་|ཛ་|ལི|།| ཤ་|ཀད་|དྲེ་|བ་|ཤད་|དྲེ|།| ཨ་|བརྟ་》
-    # [29a.4]སི་ཀེ།《non-word:  ན་|ཀུ་|ཀུ| ཀ་|བི་|ཀ་|བི་》མ་ཏི།《skrt:  ཤཱི་|ལ་མ་》ཏི《both:  སན་|དྷི་|དྷུ་》དྷུ་མ་མ་བ་ཏི《both:  ཤི་|རི་|ཤི་|རི|།| ས་|ཏྱ་|སྠི་|ཏེ་|སྭཱ་|ཧཱ|།》 ལྕི་བས་དཀྱིལ་འཁོར་བགྱིས་ནས་ནི། །མེ་ཏོག་སིལ་མ་དགྲམ་པར་བགྱི། །གསེར་གྱི་སྣོད་དང་དངུལ་སྣོད་དུ། །མངར་བའི་ཁུ་བ་གཞག་པར་བགྱི། །སྐྱེས་བུ་གོ་ཆ་བགོས་པ་ནི། །བཞི་ཞིག་དེར་
-    # [29a.5]ཡང་གཞག་པར་བགྱི། །རབ་ཏུ་བརྒྱན་པའི་བུ་མོ་བཞི། །བུམ་པ་ཐོགས་པ་གཞག་པར་བགྱི། །རྟག་ཏུ་གུ་གུལ་བདུག་པར་བགྱི། །སིལ་སྙན་སྣ་《high_freq_cluster: ལྔ་|བགྱིད་|སྩལ|། |།|གདུགས་|དང་|རྒྱལ་མཚན་》བ་དན་གྱིས། །ལྷ་མོ་དེ་ནི་ལེགས་པར་བརྒྱན། །བར་བར་དག་ཏུ་མེ་ལོང་གཞག །མདའ་དང་
-    # [29a.6]མདུང་རྩེ་རྣ་བྲང་གཞག །དེ་ནས་མཚམས་ཀྱང་གཅད་པར་བགྱི། །དེ་ཡི་འོག་ཏུ་དགོས་པ་བརྩམ། །སྔགས་ཀྱི་ལས་ནི་འདི་དག་གིས། །མཚམས་བཅད་པ་ཡང་བརྩམ་པར་བགྱི། 《non-word: །|སྱད་|ཡ་|ཐེ་|།》 ཨ་ར་ཀེ །ན་ཡ་《both: ནེ| ཧི་|ལེ|།| མི་|ལེ|།| གི་|ལེ|།| ཁི་|ལེ་|སྭཱ་|ཧཱ|།| བཅོམ་》
-    # [29a.7]ལྡན་འདས་ཀྱི་སྣམ་ལོགས་སུ་ཁྲུས་བགྱིས་ནས་སྔགས་འདི་བཟླས་བརྗོད་བགྱིས་ན་ཁྲུས་ཀྱི་ཞི་བར་སྦྱོར་རོ། 《both: །|ཏད་|ཡ་|ཐཱ|།》 ས་ག་ཊེ《both: །| བི་|ཌེ|།| བི་|ཏ་|བ་|ཏི་|ཧཱ|།| ཕྱོགས་|བཞི་|དག་|ན་|གང་|གནས་པའི》
-    print()
+    test = Tests()
 
-    # Generating combinations only keeping non-word clusters.
-    combinations = generate_combinations(after_adjusting)
-    print(combinations)
-    # [['གིའུ', 'གིའུ ཝང'],
-    # ['ཤི', 'ཤི རི', 'ཤི རི བེ'],
-    # ['ཨུ', 'ཨུ ར'],
-    # ['ན', 'ན ཀུ', 'ན ཀུ ཀུཀ', 'ན ཀུ ཀུཀ བི', 'ན ཀུ ཀུཀ བི ཀ', 'ན ཀུ ཀུཀ བི ཀ བི'],
-    # ['སྱད', 'སྱད ཡ', 'སྱད ཡ ཐེ']]
+    s = Structure(page)
+    
+    for t in s.tokens:
+        if test.is_monosyl_token(t):
+            print("TOKEN: %s content: %s tag: %s skrt: %s freq: %s" % (s.tokens.index(t), t.cleaned_content, t.tag, t.skrt, t.freq))
+    print(s.clusters)
+    p = Prediction(s.clusters, s.tokens)
+    p.ngrams()
+    p.symspell()
