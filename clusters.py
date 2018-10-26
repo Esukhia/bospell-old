@@ -1,52 +1,105 @@
-from pybo import *
-
+import time
+import os
 import re
+
 import hashids
 
-import ngram
-import pickle
+import threading
+import multiprocess
 
-from symspellcompound.symspellcompound import SySpellCompound
+from pybo import *
 
-class Tests:
+from sympound import sympound
+from jellyfish import levenshtein_distance
+
+import docx
+
+#import ngram
+#import pickle
+
+debug = False
+
+class Symspell:
+    def __init__(self, distancefun=levenshtein_distance, mded=5):
+        self.ssc = sympound(distancefun=distancefun, maxDictionaryEditDistance=mded)
+
+        """self.symspell_thread = threading.Thread(target=self.load_dict)
+        self.symspell_thread.start()"""
+        self.load_dict
+
+    def load_dict(self):
+        if not os.path.isfile("symspell.pickle"):
+            self.ssc.load_dictionary(os.path.join("resources", "symspell", "gmd.txt"))
+            self.ssc.save_pickle("symspell.pickle")
+        else:
+            self.ssc.load_pickle("symspell.pickle")
+
+    def comp(self, string):
+        #self.symspell_thread.join()
+        result = self._symspell_lookup(string)
+        return True if result == string else result
+
+    def _symspell_lookup(self, string, edm=4):
+        r = self.ssc.lookup_compound(input_string=string, edit_distance_max=edm)
+        return r.term
+
+
+class Matcher:
+    """Class Matcher to execute all the tests.
+
+    The profile POS is used by default by the pybo Tokenizer
+
+    Args:
+        profile (string): name of the profile used by pybo
+
+    Attributes:
+        FML (int): limit between the low and the high frequency of a word
+        tok (list of :obj:`tokens`): the tokens returned by BoTokenizer within pybo module
+        rule_list (:dict:`string` of tupple:int, string, int, string): used to correct possible recognition errors of namsel-ocr
+            key as `string`: regex of the search syllable
+            tupple:
+                `int` == -1: depends on the last syllable
+                        == 0: depends on itself
+                        == 1: depends on the next syllable
+                ``string`: regex of the dependent syllable
+                `int` == 0 the found syllable should be replaced
+                        == 1 the next syllable should be replaced
+                `string`: the replace value
     """
-    This class contains the tests that will need to be aggregated into
-    real testing functions.
-
-    As soon we want to test something in a Token object, we should check if it is
-    in this class or not, if not, include it.
-    """
-    def __init__(self):
-        # extracted from BoString
-        self.CONS = 1
-        self.SUB_CONS = 2
-        self.VOW = 3
-        self.TSEK = 4
+    def __init__(self, profile="MGD"):
         self.SKRT_CONS = 5
         self.SKRT_SUB_CONS = 6
         self.SKRT_VOW = 7
-        self.PUNCT = 8
-        self.NUM = 9
-        self.IN_SYL_MARK = 10
-        self.SPECIAL_PUNCT = 11
-        self.SYMBOLS = 12
-        self.NON_BO_NON_SKRT = 13
-        self.OTHER = 14
-        self.SPACE = 15
-        self.UNDERSCORE = 16
-        # extracted from BoChunk
-        self.BO_MARKER = 100
-        self.NON_BO_MARKER = 101
-        self.PUNCT_MARKER = 102
-        self.NON_PUNCT_MARKER = 103
-        self.SPACE_MARKER = 104
-        self.NON_SPACE_MARKER = 105
-        self.SYL_MARKER = 106
-        # other attributes
-        self.OOV = 'XXX'  # https://github.com/Esukhia/pybo/blob/master/pybo/BoTrie.py#L209
-        self.SOAS_OOV = 'X'  # in pybo/resources/trie/Tibetan.DICT
-        self.NON_WORD = 'non-word'  # pybo/BoTokenizer.py#L156
-        self.LFM = 1000 # Hightest low frequency of the monosyllabic words
+
+        self.NON_WORD = 'non-word'
+        self.FML = 49
+
+        self.init_tokenizer(profile)
+
+        self.rule_list = []
+        self.error_list = []
+        self.warning_list = []
+        self.__rule_list()
+
+        self.format_style = {"auto-correct":(178, 178, 178), "error":(255, 0, 0), "warning":(255, 153, 204),
+                                        "red":(255, 0, 0), "green":(0, 255, 0), "blue":(0, 0, 255), "orange":(255, 192, 0),
+                                        "purple":(204, 0, 204)}
+
+    def __rule_list(self):
+        with open("rule_list.txt", mode="r", encoding="utf-8") as f:
+            for line in f.read().split('\n'):
+                if not line or line.startswith("#") : continue
+
+                if line.startswith("@"):
+                    self.error_list.append(list(line[1:].split(",")))
+                elif line.startswith("~"):
+                    self.warning_list.append(list(line[1:].split(",")))
+                else:
+                    s, c = line.split("->")
+                    self.rule_list.append([list(s.split(",")), list(c.split(","))])
+
+    def init_tokenizer(self, profile):
+        self.tok = BoTokenizer(profile)
 
     @staticmethod
     def is_punct_token(token):
@@ -54,121 +107,69 @@ class Tests:
 
     @staticmethod
     def is_monosyl_token(token):
-        return token.syls and len(token.syls) == 1
-
-    def is_non_bo_token(self, token):
-        return self.OTHER in token.char_groups.values()
+        return token.syls and len(token.syls) == 1 and token.pos != "PART"
 
     def is_non_word_token(self, token):
         return token.tag == self.NON_WORD
 
-    def is_skrt_token(self, token):
-        return token.skrt
+    def is_non_bo_or_number(self, token):
+        return token.tag == "non-bo" or token.tag == "num"
 
-    def has_skrt_char(self, token):
-        return self.SKRT_VOW in token.char_groups.values() or \
-               self.SKRT_CONS in token.char_groups.values() or \
-               self.SKRT_SUB_CONS in token.char_groups.values()
+    @staticmethod
+    def is_oov_token(token):
+        return token.tag == "oov"
 
-    def has_skrt_syl(self, token):
-        """
-        Generates the pre-processed syl str, then tests whether it is a
-        Sanskrit syl.
-
-        :param token: token to test
-        :return: True if the token contains a Sanskrit syllable, False otherwise
-        """
-        has_skrt = False
-        if token.syls:
-            for syl in token.syls:
-                clean_syl = ''.join([token.content[s] for s in syl])
-                if self._is_skrt_syl(clean_syl):
-                    has_skrt = True
-        return has_skrt
-
-    def _is_skrt_syl(self, syl):
-        """
-        Checks whether a given syllable is Sanskrit.
-        Uses the regexes of Paul Hackett from his Visual Basic script
-
-        :param syl: syllable to test
-        :return: True if it is Sanskrit, False otherwise
-
-        .. note:: the original comments are preserved
-        .. Todo:: find source
-        """
-        # Now do Sanskrit: Skt.vowels, [g|d|b|dz]+_h, hr, shr, Skt
-        regex1 = r"([ཀ-ཬཱ-྅ྐ-ྼ]{0,}[ཱཱཱིུ-ཹཻཽ-ྃ][ཀ-ཬཱ-྅ྐ-ྼ]{0,}|[ཀ-ཬཱ-྅ྐ-ྼ]{0,}[གཌདབཛྒྜྡྦྫ][ྷ][ཀ-ཬཱ-྅ྐ-ྼ]{0,}|" \
-                 r"[ཀ-ཬཱ-྅ྐ-ྼ]{0,}[ཤཧ][ྲ][ཀ-ཬཱ-྅ྐ-ྼ]{0,}|" \
-                 r"[ཀ-ཬཱ-྅ྐ-ྼ]{0,}[གྷཊ-ཎདྷབྷཛྷཥཀྵ-ཬཱཱཱིུ-ཹཻཽ-ྃྒྷྚ-ྞྡྷྦྷྫྷྵྐྵ-ྼ][ཀ-ཬཱ-྅ྐ-ྼ]{0,})"
-        # more Sanskrit: invalid superscript-subscript pairs
-        regex2 = r"([ཀ-ཬཱ-྅ྐ-ྼ]{0,}[ཀཁགང-ཉཏ-དན-བམ-ཛཝ-ཡཤཧཨ][ྐ-ྫྷྮ-ྰྴ-ྼ][ཀ-ཬཱ-྅ྐ-ྼ]{0,})"
-        # tsa-phru mark used in Chinese transliteration
-        regex3 = r"([ཀ-ཬཱ-྅ྐ-ྼ]{0,}[༹][ཀ-ཬཱ-྅ྐ-ྼ]{0,})"
-
-        return re.search(regex1, syl) or re.search(regex2, syl) or re.search(regex3, syl)
-
-    def mono_or_punct_or_nonword(self, token):
-        return self.is_monosyl_token(token) or self.is_punct_token(token) or self.is_non_word_token(token)
-
-    def skrt(self, token):
-        return self.has_skrt_syl(token) or self.has_skrt_char(token)
+    def is_mono_or_punct_or_nonword(self, token):
+        return self.is_monosyl_token(token) or \
+               self.is_punct_token(token)
 
     def is_HFM(self, token):
-        return token.freq > self.LFM
+        return token.freq > self.FML
 
     def is_LFM(self, token):
-        return token.freq <= self.LFM
+        return token.freq <= self.FML
 
+    @staticmethod
+    def has_skrt_token_att(token):
+        return token.skrt
+
+    @staticmethod
+    def cluster_test(i, idx):
+        # return 2 for pop and underline and 1 for underline only
+        return 2 if idx[1] == 1 and i == idx[0] \
+            else 1 if idx[1] == 2 and i in range(idx[0][0], idx[0][1]) \
+            else 2 if idx[1] == 2 and i == idx[0][1] \
+            else 0
 
 class Structure:
     def __init__(self, page):
-        self.clusters = []
-        self.hash_clusters = []
         self.page = page
+        self.hash = hashids.Hashids(salt=hex(id(self)), min_length=9)
+        self.hash_cluster_list = []
+        self.clusters = []
 
-
-
-        self.tokens = self.tokenize()
-        # a supprimer quand implémenté à Pybo
-        self.freqs = {}
-        self.freq_tokens()
-        self.skrt_tokens()
+        self.tokens = matcher.tok.tokenize(self.page)
 
         self.clusterize()
         self.adjust_clusters()
         self.cluster_format()
 
-    def tokenize(self):
-        tok = BoTokenizer("POS")
-        return tok.tokenize(self.page)
-
-    def freq_tokens(self):
-        with open('resources/total_freqs.txt', 'r', encoding="utf8") as f:
-            content = f.readlines()
-            for line in content:
-                word, freq = line.split()
-                self.freqs[word] = int(freq)
-
-        for token in self.tokens:
-            if token.cleaned_content in self.freqs.keys():
-                setattr(token, "freq", self.freqs[token.cleaned_content])
-
-    def skrt_tokens(self):
-        for token in self.tokens:
-            setattr(token, "skrt", False)
-            if test.is_monosyl_token(token) and test.skrt(token):
-                token.skrt = True
-
     def clusterize(self):
         tmp = []
         for i, token in enumerate(self.tokens):
-            if test.mono_or_punct_or_nonword(token):
-                if not (not tmp and test.is_punct_token(token)):
-                    tmp.append(i)
+            if matcher.is_mono_or_punct_or_nonword(token) and \
+                    not (not tmp and matcher.is_punct_token(token)):
+                tmp.append(i)
+                if i == len(self.tokens) - 1:
+                    self.clusters.append([tmp[0], i])
             elif tmp:
                 self.clusters.append([tmp[0], tmp[-1]])
                 tmp = []
+        if debug:
+            print(self.clusters)
+
+    def get_token(self, index):
+        return self.tokens[index].content
 
     def adjust_clusters(self):
         for i, cluster in enumerate(self.clusters):
@@ -177,60 +178,61 @@ class Structure:
 
             # Left context
             while left_cluster_id < right_cluster_id:
-                if self.get_mono_token_freq(left_cluster_id) > test.LFM:
+                if self.get_mono_token_freq(left_cluster_id) > matcher.FML:
                     left_cluster_id += 1
-                    while test.is_punct_token(self.tokens[left_cluster_id]):
+                    while left_cluster_id < len(self.tokens) and matcher.is_punct_token(self.tokens[left_cluster_id]):
                         left_cluster_id += 1
                 else: break
 
             if left_cluster_id == right_cluster_id:
-                if self.get_mono_token_freq(left_cluster_id) > test.LFM:
+                if self.get_mono_token_freq(left_cluster_id) > matcher.FML:
                     self.clusters[i] = None
-                    continue
                 else:
                     self.clusters[i] = [left_cluster_id]
-                    continue
+                continue
             elif left_cluster_id > right_cluster_id:
                 self.clusters[i] = None
                 continue
             else:
-                cluster[0] = left_cluster_id
+                self.clusters[i][0] = left_cluster_id
 
             # Right context
             while right_cluster_id > left_cluster_id:
-                while test.is_punct_token(self.tokens[right_cluster_id]):
+                while matcher.is_punct_token(self.tokens[right_cluster_id]):
                     right_cluster_id -= 1
-                if self.get_mono_token_freq(right_cluster_id) > test.LFM:
+                if self.get_mono_token_freq(right_cluster_id) > matcher.FML:
                     right_cluster_id -= 1
                 else: break
 
             if right_cluster_id == left_cluster_id:
-                if self.get_mono_token_freq(right_cluster_id) > test.LFM:
+                if self.get_mono_token_freq(right_cluster_id) > matcher.FML:
                     self.clusters[i] = None
-                    continue
                 else:
                     self.clusters[i] =  [right_cluster_id]
-                    continue
+                continue
             elif right_cluster_id < left_cluster_id:
                 self.clusters[i] = None
                 continue
             else:
-                cluster[1] = right_cluster_id
+                self.clusters[i][1] = right_cluster_id
 
-        self.clusters = [c for c in self.clusters if c]
+        self.clusters = [c for c in self.clusters if c is not None]
+
+    def get_mono_token_freq(self, index):
+        ti = self.tokens[index]
+        if matcher.is_monosyl_token(ti):
+            if hasattr(ti, "freq") and ti.freq:
+                return ti.freq
+            else: return 0
 
     def cluster_format(self):
-        hash = hashids.Hashids(salt=hex(id(self)), min_length=9)
         for i, cluster_index in enumerate(self.clusters):
             type = self.cluster_type(cluster_index)
-            hash_id = hash.encode(cluster_index[0])
+            self.hash_cluster_list.append(self.hash.encode(cluster_index[0]))
             if len(cluster_index) == 1:
-                self.clusters[i] = [hash_id, cluster_index[0], type]
+                self.clusters[i] = (cluster_index[0], 1, type)
             else:
-                self.clusters[i] = [hash_id, tuple(cluster_index), type]
-            self.hash_list = [hash_id]
-
-        self.clusters = {k[0]: [k[1], k[2]] for k in self.clusters}
+                self.clusters[i] = (tuple(cluster_index), 2, type)
 
     def cluster_type(self, cluster_index):
         type = []
@@ -239,132 +241,207 @@ class Structure:
         else:
             cluster_token = [self.tokens[cluster_index[0]]]
 
-        while cluster_token:
-            t = cluster_token.pop()
-            if test.is_skrt_token(t):
+        for t in cluster_token:
+            if matcher.is_non_word_token(t):
+                type.append('non-word')
+            elif matcher.has_skrt_token_att(t):
                 type.append("skrt")
-            elif test.is_non_word_token(t):
-                type.append(test.NON_WORD)
-            elif test.is_monosyl_token(t):
+            elif matcher.is_oov_token(t):
+                type.append("oov")
+            elif matcher.is_monosyl_token(t):
                 type.append("mono")
 
-        if all([True if t == "skrt" else False for t in type]):
-            return "skrt"
-        elif any([True if t == "skrt" else False for t in type]):
-            return "both"
-        elif any([True if t == test.NON_WORD else False for t in type]):
-            return test.NON_WORD
-        elif all([True if t == "mono" else False for t in type]):
-            return "mono"
+        if any([t == 'non-word' for t in type]): return 'non-word'
+        elif all([t == "skrt" for t in type]): return "skrt"
+        elif any([t == "skrt" for t in type]): return "both"
+        elif any([t == 'oov' for t in type]): return 'oov'
+        elif all([t == "mono"for t in type]): return "mono"
+        else: return "other"
 
-    def get_mono_token_freq(self, index):
-        if test.is_monosyl_token(self.tokens[index]):
-            return self.tokens[index].freq
+    def cql_test(self, list_, code, correcting=False):
+        for q in list_:
+            ending = "་?"
+            if correcting:
+                q, c = q
+            if q[0].startswith("°"):
+                q[0] = q[0][1:]
+                ending = ""
+            matcher1 = CQLMatcher("".join(['[content="' + q[i] + ending +'"] ' for i in range(len(q))]))
+            slices = matcher1.match(self.tokens)
+            if slices:
+                for start, end in slices:
+                    for idx, i in enumerate(range(start, end + 1)):
+                        self.tokens[i]._["format"] = code
+                        if correcting and c[idx]:
+                            self.tokens[i].content = "" if c[idx] == "^" else re.sub(r"" + q[idx], r"" + c[idx], self.tokens[i].content)
+                            if debug:
+                                print(self.tokens[i].content)
 
+    def highlight(self, destination="html"):
+        if self.clusters:
+            clust = list(reversed(self.clusters))
+            for i, t in enumerate(self.tokens):
+                if len(clust) and (i == 0 or test == 2):
+                    cluster_index = clust.pop()
+                test = matcher.cluster_test(i, cluster_index)
+                if test:
+                    if cluster_index[2] == "non-word": t._["format"] = "red"
+                    elif cluster_index[2] == "oov": t._["format"] = "orange"
+                    elif cluster_index[2] == "skrt": t._["format"] = "blue"
+                    elif cluster_index[2] == "mono": t._["format"] = "purple"
+                    elif cluster_index[2] == "both": t._["format"] = "green"
+                else: t._["format"] = ""
+
+        self.cql_test(matcher.error_list, "error")
+        self.cql_test(matcher.warning_list, "warning")
+        self.cql_test(matcher.rule_list, "auto-correct", True)
+
+        self.add_to_docx() if destination == "docx" else self.add_to_html()
+
+    def add_to_docx(self):
+        # Save to Docx
+        docx_result = docx.Document()
+        p = docx_result.add_paragraph("")
+
+        for i, t in enumerate(self.tokens):
+            f = t._.get("format")
+            wp = p.add_run(t.content)
+            if matcher.is_non_bo_or_number(t):
+                wp.font.color.rgb = docx.shared.RGBColor(0, 255, 255)
+            elif not f:
+                wp.font.color.rgb = docx.shared.RGBColor(0, 0, 0)
+            else:
+                for k, fs in matcher.format_style.items():
+                    if f == k:
+                        r, g, b = fs
+                        wp.font.color.rgb = docx.shared.RGBColor(r, g, b)
+                        break
+            wp.font.size = docx.shared.Pt(22)
+        docx_result.save('result.docx')
+
+    def add_to_html(self):
+        # Save to html
+        html_result = ["<p style='font-size:22px'>"]
+        for i, t in enumerate(self.tokens):
+            f = t._.get("format")
+            if matcher.is_non_bo_or_number(t):
+                html_result.append(f"<span style='color:rgb(0, 255, 255);'>{t.content}</span>")
+            elif not f:
+                html_result.append(t.content)
+            else:
+                html_result.append(f"<span style='color:rgb{matcher.format_style[f]};'>{t.content}</span>")
+        html_result.append("</p>")
+        print("".join(html_result))
 
 
 class Prediction:
     def __init__(self, clusters, tokens):
         self.clusters = clusters
         self.tokens = tokens
-        self.limit=-1
+        self.limit = -1
         self.result = {}
-        build = True
-        rawPath = 'entries.txt'
-        ngramPath = "ngram.pickled"
+        self.rr = []
 
-        if build or not os.path.isfile("ngram.pickled"):
-            with open(rawPath, mode='r', encoding='utf-8') as f:
-                G = ngram.NGram(f.read().splitlines(), N=2)
-            pickle.dump(G, open(ngramPath, "wb"), -1)
+    def adjust_clusters(self):
+        self.token_list = []
+        for c in self.clusters:
+            if isinstance(c[0], tuple):
+                self.left = c[0][0]
+                self.right = c[0][1]
+            else:
+                self.left = self.right = c[0]
 
-        self.N = pickle.load(open(ngramPath, "rb"))
+                self.left = self.get_previous_token(self.left)
+                self.right = self.get_next_token(self.right)
 
-    def load_tokens(self, last_token=""):
+            while True:
+                self.cluster_tokens = self.load_tokens()
+                if self.cluster_tokens == -1: break
+                self.token_list.append(self.cluster_tokens)
+
+    def add_saved_tocken_info(self, tmp):
+        if tmp:
+            self.add_left_token = tmp[0]
+            self.add_right_token = tmp[-1]
+
+    def load_tokens(self, last_token="", limit=3):
         if not last_token:
-                if self.right - self.left > 5:
-                    for i, c in enumerate(self.tokens[self.left:self.right+1][0:5]):
-                        if test.is_punct_token(c):
+                if self.right - self.left > limit:
+                    for i, c in enumerate(self.tokens[self.left:self.right+1][0:limit]):
+                        if matcher.is_punct_token(c):
                             self.limit = i
                             tmp = self.tokens[self.left:self.right+1][0:i]
                             self.left = self.limit+1
-                            while test.is_punct_token(self.tokens[self.left]):
+                            while matcher.is_punct_token(self.tokens[self.left]):
                                 self.left += 1
+                            self.add_saved_tocken_info(tmp)
                             return tmp
                     else:
-                        tmp = self.tokens[self.left:self.right+1][0:5]
-                        self.left += 4
+                        tmp = self.tokens[self.left:self.right+1][0:limit]
+                        self.left += limit
+                        self.add_saved_tocken_info(tmp)
                         return tmp
                 elif self.right - self.left < 0:
                     return -1
                 else:
                     tmp = self.tokens[self.left:self.right+1]
                     self.left = self.right + 1
+                    self.add_saved_tocken_info(tmp)
                     return tmp
 
-    def ngrams(self):
-        for k, v in self.clusters.items():
-            if isinstance(v[0], tuple):
-                self.left = v[0][0]
-                self.right = v[0][1]
-            else:
-                self.left = self.right = v[0]
-
-
-                self.left = self.get_previous_token(self.left)
-                self.right = self.get_next_token(self.right)
-
-
-            while True:
-                self.cluster_tokens = []
-                self.cluster_tokens = self.load_tokens()
-                if self.cluster_tokens == -1: break
-
-
-                for i in range(len(self.cluster_tokens)):
-                    c = "".join([c.cleaned_content for c in self.cluster_tokens])
-                    ngram_result = self.N.search(c, threshold=0.52)
-                    if ngram_result: self.result[c] = ngram_result
-                    self.cluster_tokens.pop()
-                    if len(self.cluster_tokens) == 1 and test.is_HFM(self.cluster_tokens[0]): break
-
-            print(self.result)
-
-        print(self.N.search("ཆོ་ཉིད་", threshold=0.52))
-
     def get_previous_token(self, index):
-        if index > 0 and not test.is_punct_token(self.tokens[index-1]):
+        if index > 0 and not matcher.is_punct_token(self.tokens[index-1]):
             return index-1
         else: return index
 
     def get_next_token(self, index):
-        if index < len(self.tokens) and not test.is_punct_token(self.tokens[index+1]):
+        if index < len(self.tokens)-1 and not matcher.is_punct_token(self.tokens[index+1]):
             return index+1
         else: return index
 
-    def symspell(self):
-        ssc = SySpellCompound()
-        ssc = SySpellCompound(maxDictionaryEditDistance=5)
+def prediction():
+    sy = Symspell()
+    def multiprocess_func(x):
+        return sy.comp(x)
 
-        print(ssc.load_dictionary("lists/dictionary_bo_107_064.txt", term_index=0, count_index=1))
-        print(ssc.lookup_compound(input_string="བཀྲ་ཤས་བདེ་ལགས་", edit_distance_max=2))
+    p = Prediction(s.clusters, s.tokens)
+    p.adjust_clusters()
 
+    test = []
+    #hashing = []
+    for tl in p.token_list:
+        test.append("".join([token.cleaned_content for token in tl]))
+    #hashing.append("".join([hash for hash in s.hash_cluster_list]))
+
+    print(test)
+    #print(hashing)
+
+    with multiprocess.Pool() as p:
+        results = p.map(multiprocess_func, test)
+        print(results)
+    #print(hashing)
 
 
 if __name__ == '__main__':
+    start_time = time.time()
 
-    page = '''ཁ་བཅོམ་འདན་འདས་དཔལ་ཀུན་ཏུ་བཟང་པོ་ལ་ཕྱག་འཚལ་ལོ།
-     །རྒྱུད་གསུམ་ངེས་པར་བཤད་པ། དེ་ནས་དེའི་ཚེ་དེའི་དུས་ན་ཆོ་ཉིད་ཀྱི་མཁའ་དབྱངས་ཉིད་ཀྱི་ཀོང་།
-      སེམས་ཉིད་ཀྱི་གནས་དེར་བྱང་ཆུབ་ཀྱི་སེམས་ཀུན་བྱེད་རྒྱལ་པོ་ཉིད་ཆོས་ཐམས་ཆེད་སྐྱེ་བ་མེད་པའི་ངང་ལ་དགོངས་ནས་སོགས་་་'''
+    matcher = Matcher()
 
-    test = Tests()
+    doc = docx.Document('demo.docx')
+
+    page = "\n".join([tibetan.text for tibetan in doc.paragraphs])
+
+    if debug:
+        print(f"\n{page}")
 
     s = Structure(page)
-    
-    for t in s.tokens:
-        if test.is_monosyl_token(t):
-            print("TOKEN: %s content: %s tag: %s skrt: %s freq: %s" % (s.tokens.index(t), t.cleaned_content, t.tag, t.skrt, t.freq))
-    print(s.clusters)
-    p = Prediction(s.clusters, s.tokens)
-    p.ngrams()
-    p.symspell()
+    if debug:
+        for t in s.tokens:
+            print(f"TOKEN: {s.tokens.index(t)} content: {t.content} /{t.phono}/ tag: {t.tag} skrt: {t.skrt} freq: {t.freq} pos: {t.pos}")
+        print(f"\n{s.clusters}")
+
+    s.highlight("docx")
+
+    #prediction()
+
+    print('%2.2f sec' % (time.time() - start_time))
