@@ -1,2 +1,0 @@
-class DistanceException(Exception):
-    pass

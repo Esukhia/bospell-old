@@ -1,6 +1,10 @@
 
 # Created by https://www.gitignore.io/api/macos,pydev,python,eclipse,pycharm+all,visualstudio,visualstudiocode
 
+### bospell ###
+to-check/
+checked/
+
 ### Eclipse ###
 
 .metadata
@@ -557,5 +561,6 @@ default.profile
 
 # pybo
 *.pickled
+config.yaml
 
 # End of https://www.gitignore.io/api/macos,pydev,python,eclipse,pycharm+all,visualstudio,visualstudiocode

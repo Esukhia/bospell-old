@@ -1,4 +1,0 @@
-[submodule "resources/pybo/pybo"]
-	path = resources/pybo/pybo
-	url = https://github.com/Esukhia/pybo
-	branch = master
