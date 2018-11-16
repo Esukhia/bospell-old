@@ -1,12 +1,5 @@
 
 
-def sanity_check(token):
-    START = '['
-    END = ']'
-    if START in token or END in token:
-        assert token.count(START) == token.count(END)
-
-
 def is_correction(token):
     return '[' in token or ']' in token
 
@@ -30,7 +23,6 @@ def corpus_sgmt_cor(tokens, left=5, right=5):
     concs = []
     for i in range(len(tokens)):
         token = tokens[i]
-        # sanity_check(token)
         if is_correction(token):
             l_size = find_left_size(i, left)
             r_size = find_right_size(i, right, len(tokens))

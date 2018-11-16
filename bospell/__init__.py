@@ -7,14 +7,14 @@ from .tokenizers import basic, segmt_corpus
 __all__ = ['spellcheck', 'spellcheck_folder']
 
 
-def spellcheck(string, tok='', matcher='', format=''):
+def spellcheck(string, tok='', matcher='', format='', left=5, right=5):
     elts = []
 
     if tok == 'sgmt_corpus':
         elts = segmt_corpus(string)
 
     if matcher == 'corpus_cor':
-        elts = corpus_sgmt_cor(elts)
+        elts = corpus_sgmt_cor(elts, left=left, right=right)
 
     if format == 'conc':
         elts = conc(elts)
@@ -22,7 +22,7 @@ def spellcheck(string, tok='', matcher='', format=''):
     return elts
 
 
-def spellcheck_folder(in_dir, out_dir, tok, matcher, format):
+def spellcheck_folder(in_dir, out_dir, tok, matcher, format, left=5, right=5):
     in_files = Path(in_dir).glob('*.txt')
     total = []
     for f in in_files:
@@ -30,9 +30,9 @@ def spellcheck_folder(in_dir, out_dir, tok, matcher, format):
         with f.open(encoding='utf-8-sig') as g:
             dump = g.read()
 
-        out = spellcheck(dump, tok, matcher, format)
+        out = spellcheck(dump, tok, matcher, format, left=left, right=right)
         total.append(out)
 
-    out_file = Path(out_dir) / 'total.txt'
+    out_file = Path(out_dir) / 'total.tsv'
     with out_file.open('w', encoding='utf-8-sig') as h:
         h.write('\n'.join(total))
