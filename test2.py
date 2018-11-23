@@ -17,7 +17,7 @@ for f in in_files:
 out = spellcheck(total,
                  preproc='corpus_vernacular',
                  tok='sgmt_corpus_vernacular',
-                 matcher='corpus_to_review',
+                 proc='corpus_to_review',
                  format='conc',
                  left=10,
                  right=10)

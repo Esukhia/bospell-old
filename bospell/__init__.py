@@ -9,7 +9,7 @@ from .d_formatters import conc
 __all__ = ['spellcheck', 'spellcheck_folder']
 
 
-def spellcheck(string, preproc='', tok='', matcher='', format='', left=5, right=5):
+def spellcheck(string, preproc='', tok='', proc='', format='', left=5, right=5):
     elts = []
 
     if preproc == 'corpus':
@@ -25,14 +25,14 @@ def spellcheck(string, preproc='', tok='', matcher='', format='', left=5, right=
         elts = tok_pybo(string, 'GMD')
 
     # compability check
-    if tok.startswith('pybo') and matcher.startswith('pybo'):
+    if tok.startswith('pybo') and proc.startswith('pybo'):
         raise ValueError('tokens generated with pybo require matchers that support them.')
 
-    if matcher == 'corpus_cor':
+    if proc == 'corpus_cor':
         elts = corpus_sgmt_cor(elts, left=left, right=right)
-    elif matcher == 'corpus_to_review':
+    elif proc == 'corpus_to_review':
         elts = corpus_sgmt_to_review(elts, left=left, right=right)
-    elif matcher == 'pybo_errors':
+    elif proc == 'pybo_errors':
         pass
 
     if format == 'conc':
@@ -41,7 +41,7 @@ def spellcheck(string, preproc='', tok='', matcher='', format='', left=5, right=
     return elts
 
 
-def spellcheck_folder(in_dir, out_dir, tok, matcher, format, preproc='', left=5, right=5):
+def spellcheck_folder(in_dir, out_dir, tok, proc, format, preproc='', left=5, right=5):
     in_files = Path(in_dir).glob('*.txt')
     total = []
     for f in in_files:
@@ -49,7 +49,7 @@ def spellcheck_folder(in_dir, out_dir, tok, matcher, format, preproc='', left=5,
         with f.open(encoding='utf-8-sig') as g:
             dump = g.read()
 
-        out = spellcheck(dump, preproc, tok, matcher, format, left=left, right=right)
+        out = spellcheck(dump, preproc, tok, proc, format, left=left, right=right)
         total.append(out)
 
     out_file = Path(out_dir) / 'total.tsv'

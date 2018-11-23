@@ -5,7 +5,7 @@ Processing a given string in bospell means having it pass through the pipeline t
 
  - `a_preprocessing`
  - `b_tokenizers`
- - `c_matchers`
+ - `c_processors`
  - `d_formatters`
 
 ## Demo
