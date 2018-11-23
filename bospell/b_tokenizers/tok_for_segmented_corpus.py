@@ -56,5 +56,5 @@ def segmt_corpus(string):
     """
     string = string.replace('\n', ' ')
     string = string.replace('_', '_ ')  # so that spaces in orig string is used
-    return segment_with_tags(string, '[', ']', ' ')
+    return segment_with_tags(string, '༺', '༻', ' ')
 

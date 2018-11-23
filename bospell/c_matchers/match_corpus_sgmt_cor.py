@@ -1,7 +1,7 @@
 
 
 def is_correction(token):
-    return '[' in token or ']' in token
+    return '༺' in token or '༻' in token
 
 
 def find_left_size(current, span):
