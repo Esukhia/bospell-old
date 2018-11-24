@@ -2,7 +2,7 @@ from pathlib import Path
 
 from .a_preprocessing import corpus_cleanup
 from .b_tokenizers import basic, segmt_corpus, tok_pybo
-from .c_matchers import corpus_sgmt_cor, corpus_sgmt_to_review1
+from .c_matchers import corpus_sgmt_cor, corpus_sgmt_to_review
 from .d_formatters import conc
 
 
@@ -31,7 +31,7 @@ def spellcheck(string, preproc='', tok='', proc='', format='', left=5, right=5):
     if proc == 'corpus_cor':
         elts = corpus_sgmt_cor(elts, left=left, right=right)
     elif matcher == 'corpus_to_review':
-        elts = corpus_sgmt_to_review1(elts, left=left, right=right)
+        elts = corpus_sgmt_to_review(elts, left=left, right=right)
     elif matcher == 'pybo_errors':
         pass
 
