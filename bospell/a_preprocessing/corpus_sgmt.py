@@ -1,12 +1,23 @@
 import re
 
-
-TO_REMOVE = ['༺', '༻', '༼', '༽', '༜', '༙', '#', '$']
+VERNACULAR = ['༺', '༻']
+CORRECTIONS = ['[', ']']
+OTHERS = ['༼', '༽', '༜', '༙', '#', '$']
 
 
 def corpus_cleanup(string):
+    to_remove = VERNACULAR + OTHERS
     string = re.sub(r'༺(.+?)།.+?༻', r'\1', string)
-    for t in TO_REMOVE:
+    for t in to_remove:
+        string = string.replace(t, '')
+    string = re.sub(r'\s+', r' ', string)
+    return string
+
+
+def corpus_cleanup_vernacular(string):
+    to_remove = CORRECTIONS + OTHERS
+    string = re.sub(r'༺(.+?)།.+?༻', r'\1', string)
+    for t in to_remove:
         string = string.replace(t, '')
     string = re.sub(r'\s+', r' ', string)
     return string

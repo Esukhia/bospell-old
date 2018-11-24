@@ -8,8 +8,8 @@ def escape(string):
 def conc(concs):
     out = []
     for L, occ, R in concs:
-        left = escape(''.join(L))
-        right = escape(''.join(R))
+        left = escape(' '.join(L))
+        right = escape(' '.join(R))
         line = left + '\t' + occ + '\t' + right
         out.append(line)
 

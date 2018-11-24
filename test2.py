@@ -12,11 +12,12 @@ for f in in_files:
     with f.open(encoding='utf-8-sig') as g:
         dump = g.read()
         total += dump + '\n'
+        break
 
 out = spellcheck(total,
-                 preproc='corpus',
-                 tok='sgmt_corpus',
-                 matcher='corpus_to_review',
+                 preproc='corpus_vernacular',
+                 tok='sgmt_corpus_vernacular',
+                 proc='corpus_to_review',
                  format='conc',
                  left=10,
                  right=10)
