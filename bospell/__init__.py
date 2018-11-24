@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from .a_preprocessing import corpus_cleanup
-from .b_tokenizers import basic, segmt_corpus, tok_pybo
-from .c_matchers import corpus_sgmt_cor, corpus_sgmt_to_review
+from .a_preprocessing import corpus_cleanup, corpus_cleanup_vernacular
+from .b_tokenizers import basic, segmt_corpus, segmt_corpus_vernacular, tok_pybo
+from .c_processors import corpus_sgmt_cor, corpus_sgmt_to_review
 from .d_formatters import conc
 
 
@@ -30,9 +30,9 @@ def spellcheck(string, preproc='', tok='', proc='', format='', left=5, right=5):
 
     if proc == 'corpus_cor':
         elts = corpus_sgmt_cor(elts, left=left, right=right)
-    elif matcher == 'corpus_to_review':
+    elif proc == 'corpus_to_review':
         elts = corpus_sgmt_to_review(elts, left=left, right=right)
-    elif matcher == 'pybo_errors':
+    elif proc == 'pybo_errors':
         pass
 
     if format == 'conc':
