@@ -2,7 +2,7 @@ from pathlib import Path
 
 from .a_preprocessing import corpus_cleanup, corpus_cleanup_vernacular
 from .b_tokenizers import basic, segmt_corpus, segmt_corpus_vernacular, tok_pybo
-from .c_processors import corpus_sgmt_cor, corpus_sgmt_to_review
+from .c_processors import corpus_sgmt_cor, corpus_sgmt_to_review, corpus_vernacular_to_review
 from .d_formatters import conc
 
 
@@ -32,6 +32,8 @@ def spellcheck(string, preproc='', tok='', proc='', format='', left=5, right=5):
         elts = corpus_sgmt_cor(elts, left=left, right=right)
     elif proc == 'corpus_to_review':
         elts = corpus_sgmt_to_review(elts, left=left, right=right)
+    elif proc == 'corpus_vernacular':
+        elts = corpus_vernacular_to_review(elts, left=left, right=right)
     elif proc == 'pybo_errors':
         pass
 

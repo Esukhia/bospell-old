@@ -16,7 +16,7 @@ def corpus_cleanup(string):
 
 def corpus_cleanup_vernacular(string):
     to_remove = CORRECTIONS + OTHERS
-    string = re.sub(r'༺(.+?)།.+?༻', r'\1', string)
+    string = re.sub(r'༺(.+?)།.+?༻', r'༺\1༻', string)
     for t in to_remove:
         string = string.replace(t, '')
     string = re.sub(r'\s+', r' ', string)
