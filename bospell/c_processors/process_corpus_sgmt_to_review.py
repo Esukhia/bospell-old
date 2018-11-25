@@ -1,14 +1,14 @@
 
 
 def is_correction(token):
-    return '༺' in token or '༻' in token
+    return '[' in token or ']' in token
 
 
 def is_to_merge(token):
-    return token.startswith('༺') \
-           and token.count('༺') == 1 \
-           and token.endswith('༻') \
-           and token.count('༻') == 1 \
+    return token.startswith('[') \
+           and token.count('[') == 1 \
+           and token.endswith(']') \
+           and token.count(']') == 1 \
            and ' ' in token
 
 
