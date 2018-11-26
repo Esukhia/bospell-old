@@ -9,11 +9,13 @@ basic:
     proc: spaces_fulltext
     frm: plaintext
 pybo_raw_content:
+    pre: pre_basic
     tok: pybo
     pybo_profile: GMD
     proc: pybo_raw_content
     frm: plaintext
 pybo_raw_types:
+    pre: pre_basic
     tok: pybo
     pybo_profile: GMD
     proc: pybo_raw_types
