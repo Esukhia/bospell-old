@@ -2,7 +2,7 @@ from pathlib import Path
 import yaml
 
 
-default = '''
+default = '''\
 basic:
     pre: pre_basic
     tok: spaces
@@ -17,8 +17,7 @@ pybo_raw_types:
     tok: pybo
     pybo_profile: GMD
     proc: pybo_raw_types
-    frm: types
-    
+    frm: types    
 '''
 
 
@@ -54,6 +53,6 @@ class Config:
 
 
 if __name__ == '__main__':
-    config = Config("bospell_config.yaml")
+    config = Config("bospell.yaml")
     config.reset_default()
-    print(config.get_profile('basic'))
+    print(config.get_profile('pybo_raw_types'))
