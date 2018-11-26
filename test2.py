@@ -13,5 +13,5 @@ out = bs.check(text)
 print(out)
 
 in_file = 'to-check/nalanda/D001_བསྟོད།_ཀ_༠༠༠༧.txt'
-cf = CheckFile('pybo_raw_content')
+cf = CheckFile('pybo_types')
 cf.check_file(in_file)

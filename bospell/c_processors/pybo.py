@@ -51,5 +51,13 @@ def pybo_error_types(tokens: List[PyboToken]) -> DefaultDict[str, int]:
     return mistakes
 
 
+def pybo_raw_types(tokens: List[PyboToken]) -> DefaultDict[str, int]:
+    types = defaultdict(int)
+    for t in tokens:
+        occ = t.content.replace('\n', '\\n')
+        types[occ] += 1
+    return types
+
+
 def pybo_raw_content(tokens: List[PyboToken]) -> List[str]:
     return [t.content for t in tokens]
