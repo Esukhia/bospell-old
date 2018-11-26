@@ -14,7 +14,7 @@ Processing a given string in bospell means having it pass through the pipeline t
                   preproc='corpus',
                   tok='sgmt_corpus',
                   matcher='corpus_cor',
-                  format='conc',
+                  format='basic_conc',
                   left=10,
                   right=10)
 

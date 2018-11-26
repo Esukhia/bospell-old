@@ -1,3 +1,5 @@
+from typing import List
+
 
 def is_tagged_sequence(tokens, token, s_tag, e_tag):
     return token and tokens and tokens[-1]\
@@ -48,23 +50,23 @@ def segment_with_tags(string, start_tag, end_tag, sep):
     return chunks
 
 
-def segmt_corpus(string):
+def corpus_tok_to_correct(text: str) -> List[str]:
     """Tokenizes string on "\n" and spaces
 
-    :param string: to tokenize
+    :param text: to tokenize
     :return: list of tokens
     """
-    string = string.replace('\n', ' ')
-    string = string.replace('_', '_ ')  # so that spaces in orig string is used
-    return segment_with_tags(string, '[', ']', ' ')
+    text = text.replace('\n', ' ')
+    text = text.replace('_', '_ ')  # so that spaces in orig string is used
+    return segment_with_tags(text, '[', ']', ' ')
 
 
-def segmt_corpus_vernacular(string):
+def corpus_tok_vernacular(text: str) -> List[str]:
     """Tokenizes string on "\n" and spaces
 
-    :param string: to tokenize
+    :param text: to tokenize
     :return: list of tokens
     """
-    string = string.replace('\n', ' ')
-    string = string.replace('_', '_ ')  # so that spaces in orig string is used
-    return segment_with_tags(string, '༺', '༻', ' ')
+    text = text.replace('\n', ' ')
+    text = text.replace('_', '_ ')  # so that spaces in orig string is used
+    return segment_with_tags(text, '༺', '༻', ' ')

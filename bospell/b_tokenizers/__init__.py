@@ -1,3 +1,3 @@
-from .tok_spaces import basic
-from .tok_for_segmented_corpus import segmt_corpus, segmt_corpus_vernacular
-from .tok_pybo import tok_pybo
+from .basic import space_tok
+from .corpus import corpus_tok_to_correct, corpus_tok_vernacular
+from .pybo import pybo_tok

@@ -1,1 +1,1 @@
-from .corpus_sgmt import corpus_cleanup, corpus_cleanup_vernacular
+from .corpus import corpus_cleanup, corpus_cleanup_vernacular

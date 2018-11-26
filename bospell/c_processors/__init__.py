@@ -1,3 +1,2 @@
-from .process_corpus_sgmt_cor import corpus_sgmt_cor
-from .process_corpus_sgmt_to_review import corpus_sgmt_to_review
-from .process_corpus_vernacular_to_review import corpus_vernacular_to_review
+from .pybo import pybo_error_concs, pybo_error_types
+from .corpus import corpus_correct_concs, corpus_review_concs
