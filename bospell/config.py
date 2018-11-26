@@ -13,7 +13,7 @@ pybo_raw_content:
     pybo_profile: GMD
     proc: pybo_raw_content
     frm: plaintext
-pybo_types:
+pybo_raw_types:
     tok: pybo
     pybo_profile: GMD
     proc: pybo_raw_types
