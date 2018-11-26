@@ -1,45 +1,50 @@
 from pathlib import Path
-from typing import Dict, Union
 
-from .a_preprocessing import corpus_cleanup, corpus_cleanup_vernacular
+from .a_preprocessing import basic_cleanup, corpus_cleanup, corpus_cleanup_vernacular
 from .b_tokenizers import space_tok, pybo_tok, corpus_tok_to_correct, corpus_tok_vernacular
-from .c_processors import pybo_error_types, pybo_error_concs, corpus_review_concs, corpus_correct_concs
-from .d_formatters import basic_conc, stats_types
+from .c_processors import spaces_plain_fulltext, pybo_raw_content, pybo_error_types, pybo_error_concs, \
+    corpus_review_concs, corpus_correct_concs
+from .d_formatters import plaintext, basic_conc, stats_types
 
+from .config import Config
 
-__all__ = ['SpellCheck']
+__all__ = ['SpellCheck', 'CheckFile']
 
 
 components = {
-    # Preprocessing
+    # a. Preprocessing
     'pre': {
+        'pre_basic': basic_cleanup,
         'pre_corpus': corpus_cleanup,
         'pre_vern': corpus_cleanup_vernacular,
     },
-    # Tokenizers
+    # b. Tokenizers
     'tok': {
         'spaces': space_tok,
         'pybo': pybo_tok,
         'corpus_correct': corpus_tok_to_correct,
         'corpus_review': corpus_tok_vernacular
     },
-    # Processors
+    # c. Processors
     'proc': {
+        'spaces_fulltext': spaces_plain_fulltext,
+        'pybo_raw_content': pybo_raw_content,
         'pybo_types': pybo_error_types,
         'pybo_concs': pybo_error_concs,
         'corpus_review': corpus_review_concs,
         'corpus_correct': corpus_correct_concs,
     },
-    # Formatters
+    # d. Formatters
     'frm': {
-        'conc': basic_conc,
+        'plaintext': plaintext,
+        'concs': basic_conc,
         'types': stats_types
     }
 }
 
 
 class SpellCheck:
-    def __init__(self, pipeline: Dict[str, Union[str, int]]):
+    def __init__(self, profile):
         self.pre = None
         self.tok = None
         self.proc = None
@@ -50,12 +55,38 @@ class SpellCheck:
         self.prof = None
         self.filename = None  # for an advanced mode, to show what conc comes from which file
 
-        self.args_list = {'pre', 'tok', 'proc', 'frm',  # components
-                          'pybo_profile',  # pybo
-                          'left', 'right',  # concs
-                          'filename'  # others
+        self.args_list = {
+                          'pre', 'tok', 'proc', 'frm',  # components
+                          'pybo_profile',               # pybo
+                          'left', 'right',              # concs
+                          'filename'                    # others
                           }
-        self.parse_profile(pipeline)
+
+        self.config = Config('bospell.yaml')
+        self.parse_profile(self.config.get_profile(profile))
+
+    def check(self, text: str) -> str:
+        # a. preprocessing
+        if self.pre:
+            text = components['pre'][self.pre](text)
+
+        # b. tokenizing
+        if self.tok == 'pybo':
+            elts = components['tok'][self.tok](text, self.prof)
+        else:
+            elts = components['tok'][self.tok](text)
+
+        # c. processing
+        proc = components['proc'][self.proc]
+        if self.proc.endswith('concs'):
+            elts = proc(elts, left=self.left, right=self.right)
+        else:
+            elts = proc(elts)
+
+        # d. formatting
+        elts = components['frm'][self.frm](elts)
+
+        return elts
 
     def parse_profile(self, pipeline):
         self.is_valid_params(pipeline)
@@ -109,87 +140,22 @@ class SpellCheck:
            or (self.frm.endswith('concs') and not self.proc.endswith('concs')):
             raise BrokenPipeError('concs processor requires a concs formatter (both names end with "concs").')
 
-    def check(self, text: str) -> str:
-        if self.pre:
-            text = components['pre'][self.pre](text)
 
-        print('ok')
-        if self.tok == 'pybo':
-            elts = components['tok'][self.tok](text, self.prof)
-        else:
-            elts = components['tok'][self.tok](text)
+class CheckFile(SpellCheck):
+    def __init__(self, profile):
+        SpellCheck.__init__(self, profile)
 
-        proc = components['proc'][self.proc]
-        if self.proc.endswith('concs'):
-            elts = proc(elts, left=self.left, right=self.right)
-        else:
-            elts = proc(elts)
+    def check_file(self, filename: str, out_folder: str = 'checked'):
+        in_file = Path(filename)
+        out_dir = Path(out_folder)
+        assert in_file.is_file()
+        out_dir.mkdir(exist_ok=True)
+        out_file = out_dir / in_file.name
 
-        elts = components['frm'][self.frm](elts)
+        with in_file.open(encoding='utf-8-sig') as f:
+            dump = f.read()
 
-        return elts
+        output = self.check(dump)
 
-
-# def spellcheck(string, preproc='', tok='', proc='', format='', left=5, right=5, filename=''):
-#     elts = []
-#
-#     if preproc == 'corpus':
-#         string = corpus_cleanup(string)
-#
-#     elif preproc == 'corpus_vernacular':
-#         string = corpus_cleanup_vernacular(string)
-#
-#     if tok == 'sgmt_corpus':
-#         elts = corpus_tok_to_correct(string)
-#
-#     elif tok == 'sgmt_corpus_vernacular':
-#         elts = corpus_tok_vernacular(string)
-#
-#     elif tok == 'pybo':
-#         elts = pybo_tok(string, 'GMD')
-#
-#     # compability check
-#     if tok.startswith('pybo') and not proc.startswith('pybo'):
-#         raise ValueError('tokens generated with pybo require matchers that support them.')
-#
-#     if proc == 'corpus_cor':
-#         elts = prepare_sgmt_cor(elts, left=left, right=right)
-#
-#     elif proc == 'corpus_review_concs':
-#         elts = prepare_sgmt_to_review(elts, left=left, right=right)
-#
-#     elif proc == 'corpus_vernacular':
-#         elts = prepare_vernacular_to_review(elts, left=left, right=right)
-#
-#     elif proc == 'pybo_errors':
-#         pass
-#
-#     elif proc == 'pybo_error_concs':
-#         elts = prepare_error_concs(elts, left=left, right=right)
-#
-#     elif proc == 'pybo_error_types':
-#         elts = prepare_error_types(elts)
-#
-#     if format == 'basic_conc':
-#         elts = conc(elts)
-#
-#     elif format == 'types':
-#         elts = format_types(elts)
-#
-#     return elts
-
-
-# def spellcheck_folder(in_dir, out_dir, tok, proc, format, preproc='', left=5, right=5):
-#     in_files = Path(in_dir).glob('*.txt')
-#     total = []
-#     for f in in_files:
-#         print(f.name)
-#         with f.open(encoding='utf-8-sig') as g:
-#             dump = g.read()
-#
-#         out = spellcheck(dump, preproc, tok, proc, format, left=left, right=right)
-#         total.append(out)
-#
-#     out_file = Path(out_dir) / 'total.tsv'
-#     with out_file.open('w', encoding='utf-8-sig') as h:
-#         h.write('\n'.join(total))
+        with out_file.open('w', encoding='utf-8-sig') as g:
+            g.write(output)

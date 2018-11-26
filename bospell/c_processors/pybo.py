@@ -49,3 +49,7 @@ def pybo_error_types(tokens: List[PyboToken]) -> DefaultDict[str, int]:
             mis = t.content.replace('\n', '\\n')
             mistakes[mis] += 1
     return mistakes
+
+
+def pybo_raw_content(tokens: List[PyboToken]) -> List[str]:
+    return [t.content for t in tokens]
