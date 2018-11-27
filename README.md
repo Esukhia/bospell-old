@@ -1,62 +1,30 @@
-# A framework for spell checking Tibetan.
+# Spell-checking utility for Tibetan
+
+## Usage
+
+    from bospell import SpellCheck
+
+    profile = 'pybo_raw_content'
+    sc = SpellCheck(profile)
+
+    text = '༄༅།།ཆོས་ཀྱི་སྐུ་ལ་གནས་པའི་ཡོན་ཏན་ཐུན་མོང་མ་ཡིན་པ་ལ་བསྟོད་པ།#༄༅༅།།ཆོས་ཀྱི་སྐུ་ལ་གནས་པའི་ཡོན་ཏན་ཐུན་མོང་མ་ཡིན་པ་ལ་བསྟོད་པ། དེ་བཞིན་གཤེགས་པ་ཐམས་ཅད་ལ་ཕྱག་འཚལ་ལོ། །'
+    out = sc.check(text)
+
+    print(out)
+    >>> ༄༅།། ཆོས་ ཀྱི་ སྐུ་ ལ་ གནས་པ འི་ ཡོན་ཏན་ ཐུན་མོང་ མ་ཡིན་པ་ ལ་ བསྟོད་པ ། ༄༅༅།། ཆོས་ ཀྱི་ སྐུ་ ལ་ གནས་པ འི་ ཡོན་ཏན་ ཐུན་མོང་ མ་ཡིན་པ་ ལ་ བསྟོད་པ ། དེ་བཞིན་གཤེགས་པ་ ཐམས་ཅད་ ལ་ ཕྱག་ འཚལ་ ལོ ། ། 
+
+## Build your own pipeline
+
+Check for `bospell.yaml` in the folder where `check()` was called for examples.
+
+Read the four pipe's readmes for all the available components and what they do [preprocessing](./a_preprocessing/readme.md), [tokenizing](./b_tokenizers/readme.md), [processing](./c_processors/readme.md), [formatting](./d_formatters/readme.md).
 
 
-Processing a given string in bospell means having it pass through the pipeline that consists of four pipes:
+## Contributing
 
- - `a_preprocessing`
- - `b_tokenizers`
- - `c_processors`
- - `d_formatters`
-
-## Demo
-
-    spellcheck_folder(in_dir, out_dir,
-                  preproc='corpus',
-                  tok='sgmt_corpus',
-                  matcher='corpus_cor',
-                  format='basic_conc',
-                  left=10,
-                  right=10)
+How to contribute is explained [here](./bospell/readme.md).
 
 
+## License
 
-## Preprocessing
-
- - Input: `string`
- - Output: `string`
-
-## Tokenizers
-
- - Input: `string`
- - Output: `list` of tokens
-
-Token types:
-
- - `Token` object for all tokenizers derived from `pybo`
- - `string` for all others
-
-## Processors
-
- - Input: `list` of tokens (note that processors expect to be fed with the correct types of tokens)
- - Output: a structure of `string`s
-
-Structure types:
-
- - concordances: `([<string>, <string>, …], <string>, [<string>, <string>, …])`
- - spellcheck: `list` of `string`s
- - (...) 
-
-This is where the real modifications happen.
-
-Two usecases appear at the moment:
-
- - apply a given pattern in the token list and organize the matches in a given structure (like creating concordances)
- - apply modifications in the tokens themselves (like correcting misspellings) 
-
-## Formatters
-
- - Input: structure of `string`s
- - Output: `string` to be written as the final output
-
-## Adding new components
-
+The Python code is Copyright (C) 2018 Esukhia, provided under [MIT License](LICENSE).

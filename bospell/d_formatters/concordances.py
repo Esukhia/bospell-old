@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 
-def basic_conc(concs: List[Tuple[List[str], str, List[str]]], sep: str = '', context_sep: str = ' ', esc_context: bool = True) -> str:
+def basic_conc(concs: List[Tuple[List[str], str, List[str]]], sep: chr = '\t', context_sep: chr = ' ', esc_context: bool = True) -> str:
     out = []
     for L, occ, R in concs:
         left = context_sep.join(L)

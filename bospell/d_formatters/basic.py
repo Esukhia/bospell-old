@@ -1,6 +1,6 @@
 from typing import List
 
 
-def plaintext(tokens: List[str]) -> str:
+def plaintext(tokens: List[str], sep: chr = ' ') -> str:
     # do nothing
-    return ' '.join(tokens)
+    return sep.join(tokens)
