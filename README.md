@@ -17,7 +17,7 @@
 
 Check for `bospell.yaml` in the folder where `check()` was called for examples.
 
-Read the four pipe's readmes for all the available components and what they do [preprocessing](./a_preprocessing/readme.md), [tokenizing](./b_tokenizers/readme.md), [processing](./c_processors/readme.md), [formatting](./d_formatters/readme.md).
+Read the four pipe's readmes for all the available components and what they do [preprocessing](./bospell/a_preprocessing/readme.md), [tokenizing](./bospell/b_tokenizers/readme.md), [processing](./bospell/c_processors/readme.md), [formatting](./bospell/d_formatters/readme.md).
 
 
 ## Contributing
