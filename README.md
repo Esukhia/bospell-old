@@ -3,26 +3,25 @@
 ## Usage
 
 ```python
-from bospell import SpellCheck
+>>> from bospell import SpellCheck
 
-profile = 'pybo_raw_content'
-sc = SpellCheck(profile)
+>>> profile = 'pybo_raw_content'
+>>> sc = SpellCheck(profile)
 
-text = '༄༅།།ཆོས་ཀྱི་སྐུ་ལ་གནས་པའི་ཡོན་ཏན་ཐུན་མོང་མ་ཡིན་པ་ལ་བསྟོད་པ། ༄༅༅།།ཆོས་ཀྱི་སྐུ་ལ་གནས་པའི་ཡོན་ཏན་ཐུན་མོང་མ་ཡིན་པ་ལ་བསྟོད་པ། དེ་བཞིན་གཤེགས་པ་ཐམས་ཅད་ལ་ཕྱག་འཚལ་ལོ། །'
-out = sc.check(text)
+>>> text = '༄༅།།ཆོས་ཀྱི་སྐུ་ལ་གནས་པའི་ཡོན་ཏན་ཐུན་མོང་མ་ཡིན་པ་ལ་བསྟོད་པ། ༄༅༅།།ཆོས་ཀྱི་སྐུ་ལ་གནས་པའི་ཡོན་ཏན་ཐུན་མོང་མ་ཡིན་པ་ལ་བསྟོད་པ། དེ་བཞིན་གཤེགས་པ་ཐམས་ཅད་ལ་ཕྱག་འཚལ་ལོ། །'
+>>> out = sc.check(text)
 
-print(out)
-
+>>> print(out)
 ༄༅།། ཆོས་ ཀྱི་ སྐུ་ ལ་ གནས་པ འི་ ཡོན་ཏན་ ཐུན་མོང་ མ་ཡིན་པ་ ལ་ བསྟོད་པ ། ༄༅༅།། ཆོས་ ཀྱི་ སྐུ་ ལ་ གནས་པ འི་ ཡོན་ཏན་ ཐུན་མོང་ མ་ཡིན་པ་ ལ་ བསྟོད་པ ། དེ་བཞིན་གཤེགས་པ་ ཐམས་ཅད་ ལ་ ཕྱག་ འཚལ་ ལོ ། ། 
 ```
 
 ```python
-from bospell import CheckFile
+>>> from bospell import CheckFile
 
-profile = 'pybo_raw_types'
-cf = CheckFile(profile)
+>>> profile = 'pybo_raw_types'
+>>> cf = CheckFile(profile)
 
-cf.check_file('input.file')
+>>> cf.check_file('input.file')
 ```
 
 ## Build your own pipeline
