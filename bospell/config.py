@@ -19,7 +19,12 @@ pybo_raw_types:
     tok: pybo
     pybo_profile: GMD
     proc: pybo_raw_types
-    frm: types    
+    frm: types
+corpus_seg_adjusted:
+    pre: pre_basic
+    tok: corpus_correct
+    proc: corpus_adjust_seg
+    frm: plaintext
 '''
 
 

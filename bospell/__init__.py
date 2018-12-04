@@ -3,7 +3,7 @@ from pathlib import Path
 from .a_preprocessing import basic_cleanup, corpus_cleanup, corpus_cleanup_vernacular
 from .b_tokenizers import space_tok, pybo_tok, corpus_tok_to_correct, corpus_tok_vernacular
 from .c_processors import spaces_plain_fulltext, pybo_raw_content, pybo_raw_types, pybo_error_types, pybo_error_concs, \
-    corpus_review_concs, corpus_correct_concs
+    corpus_review_concs, corpus_correct_concs, corpus_adjust_segmentation
 from .d_formatters import plaintext, basic_conc, stats_types
 
 from .config import Config
@@ -34,6 +34,7 @@ components = {
         'pybo_concs': pybo_error_concs,
         'corpus_review': corpus_review_concs,
         'corpus_correct': corpus_correct_concs,
+        'corpus_adjust_seg': corpus_adjust_segmentation
     },
     # d. Formatters
     'frm': {

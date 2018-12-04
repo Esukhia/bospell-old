@@ -53,3 +53,9 @@ def corpus_correct_concs(tokens: List[str], left=5, right=5) -> List[Tuple[List[
             concs.append(conc)
 
     return concs
+
+
+def corpus_adjust_segmentation(tokens: List[str]) -> List[str]:
+    out = []
+
+    return out
