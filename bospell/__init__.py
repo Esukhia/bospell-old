@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from .a_preprocessing import basic_cleanup, corpus_cleanup, corpus_cleanup_vernacular
+from .a_preprocessing import basic_cleanup, corpus_cleanup, corpus_cleanup_vernacular, corpus_clean_all
 from .b_tokenizers import space_tok, pybo_tok, corpus_tok_to_correct, corpus_tok_vernacular
 from .c_processors import spaces_plain_fulltext, pybo_raw_content, pybo_raw_types, pybo_error_types, pybo_error_concs, \
-    corpus_review_concs, corpus_correct_concs, corpus_adjust_segmentation
-from .d_formatters import plaintext, basic_conc, stats_types
+    corpus_review_concs, corpus_correct_concs
+from .d_formatters import plaintext, basic_conc, stats_types, adjust_seg
 
 from .config import Config
 
@@ -17,6 +17,7 @@ components = {
         'pre_basic': basic_cleanup,
         'pre_corpus': corpus_cleanup,
         'pre_vern': corpus_cleanup_vernacular,
+        'pre_corpus_cleanall': corpus_clean_all
     },
     # b. Tokenizers
     'tok': {
@@ -33,14 +34,14 @@ components = {
         'pybo_types': pybo_error_types,
         'pybo_concs': pybo_error_concs,
         'corpus_review': corpus_review_concs,
-        'corpus_correct': corpus_correct_concs,
-        'corpus_adjust_seg': corpus_adjust_segmentation
+        'corpus_correct': corpus_correct_concs
     },
     # d. Formatters
     'frm': {
         'plaintext': plaintext,
         'concs': basic_conc,
-        'types': stats_types
+        'types': stats_types,
+        'corpus_adjust': adjust_seg
     }
 }
 

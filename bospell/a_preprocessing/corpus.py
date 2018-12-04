@@ -25,3 +25,11 @@ def corpus_cleanup_vernacular(text: str) -> str:
         text = text.replace(t, '')
     text = re.sub(r'\s+', r' ', text)
     return text
+
+
+def corpus_clean_all(text: str) -> str:
+    to_remove = VERNACULAR + CORRECTIONS + OTHERS + ['_']
+    for t in to_remove:
+        text = text.replace(t, ' ')
+    text = re.sub(r'\s+', r' ', text)
+    return text

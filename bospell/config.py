@@ -21,10 +21,10 @@ pybo_raw_types:
     proc: pybo_raw_types
     frm: types
 corpus_seg_adjusted:
-    pre: pre_basic
+    pre: pre_corpus_cleanall
     tok: corpus_correct
-    proc: corpus_adjust_seg
-    frm: plaintext
+    proc: spaces_fulltext
+    frm: corpus_adjust
 '''
 
 

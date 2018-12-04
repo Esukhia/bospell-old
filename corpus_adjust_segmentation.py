@@ -10,5 +10,6 @@ mode = 'corpus_seg_adjusted'
 cf = CheckFile(mode)
 
 for f in Path(in_dir).glob('*.*'):
-    dump = f.read_text()
+    if f.stem.startswith('170217A2008MAB03LY-01GJC'):
+        print('ok')
     cf.check_file(f, out_dir)

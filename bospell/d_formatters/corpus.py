@@ -41,19 +41,33 @@ def segment_with_tags(string, start_tag, end_tag, sep, in_tag_max=3):
 
     return chunks
 
-chunks = segment_with_tags(truc, '[', ']', ' ')
-if not chunks:
-    row[1] = truc
-    continue
-chunks = [c.replace(' ', '').strip('[]') for c in chunks]
-chunks = [c for c in chunks if c]
-truc = ' '.join(chunks)
+
+def apply_adjust(string):
+    chunks = segment_with_tags(string, '[', ']', ' ')
+    if not chunks:
+        return string
+
+    chunks = [c.replace(' ', '').strip('[]') for c in chunks]
+    chunks = [c for c in chunks if c]
+    return ' '.join(chunks)
 
 
 def adjust_seg(tokens: List[str], sep: chr = ' ') -> str:
     out = sep.join(tokens)
 
-    lines = Path(Path(__file__) / '../resources/seg_adjust.csv').read_text().splitlines()
+    adjusts = {}
+    lines = Path(Path(__file__).parent / '../resources/seg_adjust.csv').read_text().splitlines()
     for line in lines:
+        cor, repl = line.split(',')
+        orig = cor.replace('[', '').replace(']', '')
+        cor = apply_adjust(cor)
+        repl = apply_adjust(repl)
+        if repl:
+            adjusts[orig] = repl
+        else:
+            adjusts[orig] = cor
+
+    for orig, repl in adjusts.items():
+        out = out.replace(orig, repl)
 
     return out
