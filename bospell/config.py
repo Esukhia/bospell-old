@@ -14,6 +14,11 @@ pybo_raw_content:
     pybo_profile: GMD
     proc: pybo_raw_content
     frm: plaintext
+syls:
+    pre: pre_basic
+    tok: syls
+    proc: spaces_fulltext
+    frm: plaintext
 pybo_raw_types:
     pre: pre_basic
     tok: pybo
