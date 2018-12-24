@@ -12,4 +12,5 @@ for col in ['kangyur', 'tengyur']:
                 if not p.is_dir():
                     p.mkdir(exist_ok=True)
 
+            print(str(f))
             cf.check_file(f, out_file.parent)

@@ -3,6 +3,7 @@ import re
 VERNACULAR = ['༺', '༻']
 CORRECTIONS = ['[', ']']
 OTHERS = ['༼', '༽', '༜', '༙', '#', '$']
+TIMECODES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ',', ':', '-', '>']
 
 
 def corpus_cleanup(text: str) -> str:
@@ -28,7 +29,7 @@ def corpus_cleanup_vernacular(text: str) -> str:
 
 
 def corpus_clean_all(text: str) -> str:
-    to_remove = VERNACULAR + CORRECTIONS + OTHERS + ['_']
+    to_remove = VERNACULAR + CORRECTIONS + OTHERS + TIMECODES + ['_']
     for t in to_remove:
         text = text.replace(t, ' ')
     text = re.sub(r'\s+', r' ', text)

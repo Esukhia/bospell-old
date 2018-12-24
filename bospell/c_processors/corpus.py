@@ -1,4 +1,5 @@
-from typing import List, Tuple
+from typing import List, Tuple, DefaultDict
+from collections import defaultdict
 
 from .helpers import find_context_sizes
 
@@ -53,3 +54,11 @@ def corpus_correct_concs(tokens: List[str], left=5, right=5) -> List[Tuple[List[
             concs.append(conc)
 
     return concs
+
+
+def corpus_types(tokens: List[str]) -> DefaultDict[str, int]:
+    types = defaultdict(int)
+    for t in tokens:
+        occ = t.replace('\n', '\\n')
+        types[occ] += 1
+    return types

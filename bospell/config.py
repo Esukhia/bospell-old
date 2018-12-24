@@ -14,6 +14,18 @@ pybo_raw_content:
     pybo_profile: GMD
     proc: pybo_raw_content
     frm: plaintext
+pybo_raw_lines:
+    pre: pre_basic_lines
+    tok: pybo
+    pybo_profile: GMD
+    proc: pybo_raw_content
+    frm: plaintext
+omegat:
+    pre: pre_basic_lines
+    tok: pybo
+    pybo_profile: GMD
+    proc: pybo_raw_content
+    frm: dash_separated
 syls:
     pre: pre_basic
     tok: syls
@@ -30,6 +42,11 @@ corpus_seg_adjusted:
     tok: corpus_correct
     proc: spaces_fulltext
     frm: corpus_adjust
+corpus_stats_per_file:
+    pre: pre_corpus_cleanall
+    tok: corpus_correct
+    proc: spaces_fulltext
+    frm: types
 '''
 
 
