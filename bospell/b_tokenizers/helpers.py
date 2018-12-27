@@ -47,4 +47,7 @@ def segment_with_tags(string, start_tag, end_tag, sep, in_tag_max=3):
         else:
             chunk += char
 
+    if chunk:
+        chunks.append(chunk)
+
     return chunks

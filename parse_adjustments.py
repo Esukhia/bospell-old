@@ -40,6 +40,9 @@ def segment_with_tags(string, start_tag, end_tag, sep, in_tag_max=3):
         else:
             chunk += char
 
+    if chunk:
+        chunks.append(chunk)
+
     return chunks
 
 
@@ -70,10 +73,16 @@ for row in dump:
     if not chunks:
         row[1] = truc
         continue
-    chunks = [c.replace(' ', '').strip('[]') for c in chunks]
+    chunks = [c.replace(' ', '')
+                  .strip('[]')
+                  .replace(']་', '་')
+                  .replace(']', '')
+                  .replace('[', '')
+                  .replace('༜', '')
+                  .replace('༼', '') for c in chunks]
     chunks = [c for c in chunks if c]
     truc = ' '.join(chunks)
-    row[1] = truc.strip()
+    row[1] = truc.strip().replace(' ་', '་').replace('][', ' ')
     if row not in out:
         out.append(row)
 
@@ -86,6 +95,7 @@ for r in out:
         okay.append(r)
 
 print('there is', len(to_check), 'bad entries.')
+Path('bad_entries.csv').write_text('\n'.join([','.join(r) for r in to_check]))
 
 Path('bospell/resources/vernacular.csv').write_text('\n'.join([','.join(r) for r in okay]))
 print('ok')
