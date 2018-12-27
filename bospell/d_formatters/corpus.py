@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+import re
 
 
 def segment_with_tags(string, start_tag, end_tag, sep, in_tag_max=3):
@@ -39,6 +40,9 @@ def segment_with_tags(string, start_tag, end_tag, sep, in_tag_max=3):
         else:
             chunk += char
 
+    if chunk:
+        chunks.append(chunk)
+
     return chunks
 
 
@@ -67,7 +71,30 @@ def adjust_seg(tokens: List[str], sep: chr = ' ') -> str:
         else:
             adjusts[orig] = cor
 
+    normalisation = {}
+    standardized = {}
+    lines = Path(Path(__file__).parent / '../resources/vernacular.csv').read_text().splitlines()
+    lines = [l for l in lines if not l.startswith(',')]
+    for line in lines[1:]:
+        normalized, to_normalize, standard = line.split(',')
+        normalized, to_normalize, standard = normalized.rstrip('་').strip(), to_normalize.rstrip('་').strip(), standard.rstrip('་').strip()
+        if normalized == to_normalize:
+            continue
+        normalisation[to_normalize] = normalized
+        normalisation[to_normalize+'་'] = normalized+'་'
+        if not standard or standard == to_normalize:
+            continue
+        standardized[to_normalize] = standard
+        standardized[to_normalize+'་'] = standard+'་'
+
     for orig, repl in adjusts.items():
         out = out.replace(orig, repl)
+
+    ### this part applies normalization after adjusting the segmentation
+    # looping over standardized will apply standard equivalents of vernaculars instead of normalization
+    for to_norm, normed in normalisation.items():
+        to_norm = ' ' + to_norm + ' '
+        normed = ' ' + normed + ' '
+        out = out.replace(to_norm, normed)
 
     return out

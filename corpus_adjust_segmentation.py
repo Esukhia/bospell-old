@@ -5,7 +5,7 @@ from bospell import CheckFile
 
 in_dir = 'to-check/corpus'
 
-out_dir = 'checked/cleaned_segmentation'
+out_dir = 'checked/adjust_then_normalize'
 mode = 'corpus_seg_adjusted'
 cf = CheckFile(mode)
 
@@ -15,4 +15,4 @@ cf2 = CheckFile(mode2)
 
 for f in Path(in_dir).glob('*.*'):
     cf.check_file(f, out_dir)
-    cf2.check_file(f, out_dir2)
+    # cf2.check_file(f, out_dir2)
