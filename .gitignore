@@ -2,7 +2,7 @@
 # Created by https://www.gitignore.io/api/macos,pydev,python,eclipse,pycharm+all,visualstudio,visualstudiocode
 
 ### bospell ###
-bospell.yaml
+pybo.yaml
 to-check/
 checked/
 

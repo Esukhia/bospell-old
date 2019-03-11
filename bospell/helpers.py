@@ -1,29 +1,7 @@
-from typing import Tuple
 import re
 
 
-def left_context_size(idx: int, context: int) -> int:
-    if idx - context < 0:
-        return 0
-
-    while idx - context < 0:
-        context += 1
-    return idx - context
-
-
-def right_context_size(idx: int, context: int, maximum: int) -> int:
-    while idx + context > maximum:
-        context -= 1
-    return idx + context
-
-
-def find_context_sizes(idx: int, left: int, right: int, maximum: int) -> Tuple[int, int]:
-    l_con = left_context_size(idx, left)
-    r_con = right_context_size(idx, right, maximum)
-    return l_con, r_con
-
-
-def is_skrt(syl):
+def is_sskrt(syl):
     """Source for regexes : Paul Hackett Visual Basic script
 
     regex1: Now do Sanskrit: Skt.vowels, [g|d|b|dz]+_h, hr, shr, Skt
@@ -41,13 +19,23 @@ def is_skrt(syl):
 
 
 def is_skrt_word(word):
-    """Uses is_skrt() to check for sanskrit syllables
-
-    """
-    skrt = False
+    is_skrt = False
     syls = word.strip('་').split('་')
     for s in syls:
-        if is_skrt(s):
-            skrt = True
+        if is_sskrt(s):
+            is_skrt = True
+    return is_skrt
 
-    return skrt
+
+def is_mistake(token):
+    exceptions = ['\n']
+    if token.type == 'syl' or token.type == 'non-bo':
+        if (not token.skrt
+            and not is_skrt_word(token.cleaned_content)) \
+           and \
+            (token.pos == 'oov'
+             or token.pos == 'non-word'
+             or token.type == 'non-bo') \
+           and token.content not in exceptions:
+            return True
+    return False
