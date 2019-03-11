@@ -18,7 +18,8 @@ for f in Path('to-check/tengyur_last_volumes/').glob('*.csv'):
     lines = extract_all(f.read_text())
     for num, l in enumerate(lines):
         if has_bad_ending(l):
-            bad_lines.append((f.stem, num, l))
+            line_end = '(...) ' + '་'.join(l.split('་')[-10:])
+            bad_lines.append((f.stem, num, line_end))
 
 out = '\n'.join([','.join([str(x) for x in a]) for a in bad_lines])
 Path('bad_line_endings.csv').write_text(out)
