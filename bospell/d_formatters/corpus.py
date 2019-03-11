@@ -92,9 +92,12 @@ def adjust_seg(tokens: List[str], sep: chr = ' ') -> str:
 
     ### this part applies normalization after adjusting the segmentation
     # looping over standardized will apply standard equivalents of vernaculars instead of normalization
-    for to_norm, normed in normalisation.items():
+    for to_norm, normed in standardized.items():
         to_norm = ' ' + to_norm + ' '
         normed = ' ' + normed + ' '
         out = out.replace(to_norm, normed)
+
+    out = re.sub(r'([^་།] )(([སར]|འི)་?[ །])', r'\1~\2', out)
+    out = re.sub(r"([^་། \)]) ", r"\1་ ", out)
 
     return out

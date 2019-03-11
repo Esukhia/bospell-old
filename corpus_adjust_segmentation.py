@@ -5,7 +5,7 @@ from bospell import CheckFile
 
 in_dir = 'to-check/corpus'
 
-out_dir = 'checked/adjust_then_normalize'
+out_dir = 'checked/standardized_corpus'
 mode = 'corpus_seg_adjusted'
 cf = CheckFile(mode)
 
