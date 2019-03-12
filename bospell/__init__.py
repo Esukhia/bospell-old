@@ -10,6 +10,9 @@ pipes = {
             'extract_tib_only': extract_tib_only,
             'extract_all': extract_all,
 
+            # Tokenizers
+            'custom_pybo_tok': custom_pybo_tok,
+
             # Processing
             'find_mistake_types': find_mistake_types,
             'find_mistake_concs': find_mistake_concs,

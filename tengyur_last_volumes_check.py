@@ -5,16 +5,7 @@ from bospell import *
 
 
 in_path = Path('to-check/tengyur_last_volumes/')
-out_path = Path('checked/tengyur_last_volumes/')
 include_skrt = True
-
-pipeline = BoPipeline(
-            pipes['extract_tib_only'],
-            'pybo',
-            ('pybo_mistakes', pipes['find_mistake_types']),
-            'dummy',
-            pybo_profile='GMD'
-        )
 
 files = {
     in_path / 'lines - 170_འཁྲི་ཤིང།_ཀེ.csv': 'has_skrt',
@@ -24,29 +15,29 @@ files = {
     in_path / 'lines - 208_སྒྲ་མདོ།_ཏོ.csv': '',
     in_path / 'lines - 211_སྣ་ཚོགས།_ནོ.csv': '',
     in_path / 'lines - རྒྱུད་འགྲེལ། ནུ།.csv': '',
-    in_path / 'lines - རྒྱུད་འགྲེལ། ཙི།.csv': ''
+    in_path / 'lines - རྒྱུད་འགྲེལ། ཙི།.csv': '',
+    in_path / 'lines - བཀའ་འགྱུར་དཀར་ཆགས།.csv': ''
         }
 
 mistakes = defaultdict(int)
 for f, mode in files.items():
+    print(f.name)
     content = f.read_text()
     if mode == 'has_skrt' and not include_skrt:
         pipeline = BoPipeline(
             pipes['extract_tib_only'],
-            'pybo',
-            'pybo_mistakes',
+            pipes['custom_pybo_tok'],
+            pipes['find_mistake_types'],
             'dummy',
-            pybo_profile='GMD'
         )
 
         mistk = pipeline.pipe_str(content)
     else:
         pipeline = BoPipeline(
             pipes['extract_all'],
-            'pybo',
-            'pybo_mistakes',
+            pipes['custom_pybo_tok'],
+            pipes['find_mistake_types'],
             'dummy',
-            pybo_profile='GMD'
         )
 
         mistk = pipeline.pipe_str(content)
