@@ -39,3 +39,7 @@ How to contribute is explained [here](./bospell/readme.md).
 ## License
 
 The Python code is Copyright (C) 2018 Esukhia, provided under [MIT License](LICENSE).
+
+
+## Resources
+https://github.com/Esukhia/bophono
